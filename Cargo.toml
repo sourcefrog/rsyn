@@ -1,0 +1,13 @@
+[package]
+name = "rsyn"
+version = "0.1.0"
+authors = ["Martin Pool <mbp@google.com>"]
+edition = "2018"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fern = "0.6"
+log = "0.4"
+nom = "5.0.0"

@@ -6,7 +6,7 @@ use log::{debug, error, info, trace, warn};
 mod connection;
 mod flist;
 mod mux;
-mod proto;
+mod varint;
 mod statistics;
 
 use connection::Connection;

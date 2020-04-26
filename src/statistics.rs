@@ -3,9 +3,8 @@
 //! Statistics/counter structs.
 
 use std::io;
-use std::io::prelude::*;
 
-use crate::proto::{ReadProto, WriteProto};
+use crate::varint::ReadVarint;
 
 #[derive(Debug)]
 pub struct ServerStatistics {
@@ -17,16 +16,16 @@ pub struct ServerStatistics {
 }
 
 impl ServerStatistics {
-    pub fn read(r: &mut (dyn Read + 'static)) -> io::Result<ServerStatistics> {
+    pub fn read(rv: &mut ReadVarint) -> io::Result<ServerStatistics> {
         // TODO: Perhaps this should be part of the Connection, or some place
         // that knows the protocol version.
         Ok(ServerStatistics {
-            total_bytes_read: r.read_i64()?,
-            total_bytes_written: r.read_i64()?,
-            total_file_size: r.read_i64()?,
+            total_bytes_read: rv.read_i64()?,
+            total_bytes_written: rv.read_i64()?,
+            total_file_size: rv.read_i64()?,
             // TODO: These last two are only set for protocol >=29.
-            flist_build_time: r.read_i64()?,
-            flist_xfer_time: r.read_i64()?,
+            flist_build_time: rv.read_i64()?,
+            flist_xfer_time: rv.read_i64()?,
         })
     }
 }

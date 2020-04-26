@@ -5,7 +5,7 @@ use std::io;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::proto::ReadProto;
+use crate::varint::ReadVarint;
 
 // const STATUS_TOP_LEVEL_DIR: u8 = 0x01;
 const STATUS_REPEAT_MODE: u8 = 0x02;
@@ -25,7 +25,7 @@ pub struct FileEntry {
     pub mtime: i32,
 }
 
-pub fn read_file_list(r: &mut (dyn io::Read + 'static)) -> io::Result<Vec<FileEntry>> {
+pub fn read_file_list(r: &mut ReadVarint) -> io::Result<Vec<FileEntry>> {
     // TODO: Support receipt of uid and gid with -o, -g.
     // TODO: Support devices, links, etc.
 

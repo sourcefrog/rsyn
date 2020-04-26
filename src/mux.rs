@@ -62,7 +62,7 @@ impl DemuxRead {
                 return Ok(len);
             }
 
-            // A message: read and display it here
+            // A human-readable message: read and display it here.
             let mut message = vec![0; len];
             self.r.read_exact(&mut message)?;
             info!("REMOTE: {}", String::from_utf8_lossy(&message).trim_end());
@@ -76,6 +76,14 @@ impl DemuxRead {
     }
 }
 
+
+// TODO: Maybe add buffering and flushing, so that every single write is
+// not sent as a single packet.
+
+/// Translate a stream of bytes into length-prefixed packets.
+///
+/// This is only used from the server to the client, and
+/// at the moment rsyn only acts as a client, so this is never used.
 #[allow(unused)]
 pub struct MuxWrite {
     w: Box<dyn Write>,

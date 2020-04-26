@@ -2,7 +2,10 @@
 use log::{debug, error, info, trace, warn};
 
 mod connection;
+mod flist;
+mod mux;
 mod parser;
+mod proto;
 
 use connection::Connection;
 
@@ -25,6 +28,7 @@ fn setup_logger() {
 
 fn main() {
     setup_logger();
-    let _conn = Connection::local_subprocess();
+    let mut conn = Connection::local_subprocess();
+    conn.list_files();
     debug!("that's all folks");
 }

@@ -1,17 +1,26 @@
+#![allow(unused_imports)]
+
+use std::io;
 use std::io::prelude::*;
+use std::io::ErrorKind;
 use std::process::{Command, Stdio};
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use crate::flist::read_file_list;
+use crate::mux::DemuxRead;
 use crate::parser;
+use crate::proto::{ReadProto, WriteProto};
 
 const MY_PROTOCOL_VERSION: u32 = 29;
 
 pub struct Connection {
     r: Box<dyn Read>,
     w: Box<dyn Write>,
+    #[allow(unused)]
     server_version: u32,
+    #[allow(unused)]
     salt: u32,
 }
 
@@ -19,7 +28,8 @@ impl Connection {
     pub fn local_subprocess() -> Connection {
         let mut child = Command::new("rsync")
             .arg("--server")
-            .arg(".")
+            .arg("--sender")
+            .arg("-vvr")
             .arg("/etc")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -35,29 +45,34 @@ impl Connection {
     }
 
     fn handshake(mut r: Box<dyn Read>, mut w: Box<dyn Write>) -> Connection {
-        send_u32(&mut w, MY_PROTOCOL_VERSION)
-            .expect("failed to send version to child");
+        let b = MY_PROTOCOL_VERSION.to_le_bytes();
+        w.write_all(&b).expect("failed to send version to child");
 
         let mut b = [0u8; 8];
         r.read_exact(&mut b).unwrap();
         let (rest, (server_version, salt)) = parser::server_greeting(&b).unwrap();
         assert!(rest.is_empty());
-        debug!("connected to server version {}, salt {:#x}", server_version, salt);
+        debug!(
+            "connected to server version {}, salt {:#x}",
+            server_version, salt
+        );
 
+        // Server-to-client is multiplexed; client-to-server is not.
         Connection {
-            r,
+            r: Box::new(DemuxRead::new(r)),
             w,
             server_version,
             salt,
         }
     }
-}
 
-fn send_u32(w: &mut dyn Write, v: u32) -> std::io::Result<()> {
-    let b = v.to_le_bytes();
-    w.write_all(&b)
-}
+    pub fn list_files(&mut self) {
+        // send exclusion list length of 0
+        self.send_exclusions();
+        read_file_list(&mut self.r).unwrap();
+    }
 
-/// Handles transmission of length-prefixed envelope packets.
-struct Mux {
+    fn send_exclusions(&mut self) {
+        self.w.write_i32(0).unwrap();
+    }
 }

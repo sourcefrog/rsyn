@@ -13,20 +13,20 @@ lazy_static! {
 
 #[test]
 fn list_files_etc() -> io::Result<()> {
-    let flist = Connection::local_subprocess("/etc")?.list_files()?;
+    let _flist = Connection::local_subprocess("/etc")?.list_files()?;
     Ok(())
 }
 
 #[test]
 fn list_files_dev() -> io::Result<()> {
-    let flist = Connection::local_subprocess("/dev")?.list_files()?;
+    let _flist = Connection::local_subprocess("/dev")?.list_files()?;
     Ok(())
 }
 
 fn install_test_logger() {
     // This'll fail if called twice; don't worry.
     let _ = fern::Dispatch::new()
-        .format(rsyn::format_log)
+        .format(rsyn::logging::format_log)
         .level(log::LevelFilter::Debug)
         .chain(fern::Output::call(|record| println!("{}", record.args())))
         .apply();

@@ -34,12 +34,23 @@ impl DemuxRead {
 
     /// Return the length of the next real data block.
     ///
-    /// Read and print out any messages from the remote end.
+    /// Read and print out any messages from the remote end, without returning
+    /// them.
+    ///
+    /// Returns Ok(0) for a clean EOF before the start of the packet.
     fn read_header_consume_messages(&mut self) -> std::io::Result<usize> {
         loop {
             // Read a length-prefixed packet from peer.
             let mut h = [0u8; 4];
-            self.r.read_exact(&mut h)?;
+            if let Err(e) = self.r.read_exact(&mut h) {
+                match e.kind() {
+                    io::ErrorKind::UnexpectedEof => {
+                        debug!("clean eof before mux packet");
+                        return Ok(0);
+                    }
+                    _ => return Err(e),
+                }
+            }
 
             // debug!("got envelope header {{{}}}", hex::encode(&h));
             let h = u32::from_le_bytes(h);

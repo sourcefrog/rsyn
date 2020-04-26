@@ -20,7 +20,7 @@ fn setup_logger() {
                 message
             ))
         })
-        .level(log::LevelFilter::Info)
+        .level(log::LevelFilter::Debug)
         .chain(std::io::stdout())
         .chain(fern::log_file("rsyn.log").expect("failed to open log file"))
         .apply()

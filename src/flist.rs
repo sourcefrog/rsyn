@@ -88,5 +88,6 @@ pub fn read_file_list(r: &mut (dyn io::Read + 'static)) -> io::Result<Vec<FileEn
         });
     }
     debug!("end of file list");
+    // TODO: Sort by strcmp.
     Ok(v)
 }

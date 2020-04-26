@@ -23,6 +23,8 @@ pub struct Connection {
     salt: i32,
 }
 
+// TODO: Clean shutdown: close write, check there's no more to read, and
+// wait on the child.
 impl Connection {
     pub fn local_subprocess(path: &str) -> io::Result<Connection> {
         let mut child = Command::new("rsync")
@@ -100,10 +102,8 @@ impl Connection {
 
         // one more end?
         self.wv.write_i32(-1)?;
-        loop {
-            dbg!(self.rv.read_u8()?);
-        }
-        // Ok(())
+        // TODO: Drain out any remaining logs?
+        Ok(())
     }
 
     fn send_exclusions(&mut self) {

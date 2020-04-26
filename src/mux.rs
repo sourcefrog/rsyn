@@ -10,24 +10,26 @@ const TAG_FATAL: u8 = 1;
 pub struct DemuxRead {
     r: Box<dyn Read>,
     /// Amount of data from previous packet remaining to read out
-    remains: usize,
+    current_packet_len: usize,
 }
 
 impl Read for DemuxRead {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        if self.remains == 0 {
-            self.remains = self.read_header_consume_messages()?;
+        if self.current_packet_len == 0 {
+            self.current_packet_len = self.read_header_consume_messages()?;
         }
-        let max_len = std::cmp::min(buf.len(), self.remains);
+        let max_len = std::cmp::min(buf.len(), self.current_packet_len);
         let read_len = self.r.read(&mut buf[..max_len])?;
-        self.remains -= read_len;
+        self.current_packet_len -= read_len;
         Ok(read_len)
     }
 }
 
 impl DemuxRead {
+    /// Construct a new packet demuxer, wrapping an underlying Read (typically
+    /// a pipe).
     pub fn new(r: Box<dyn Read>) -> DemuxRead {
-        DemuxRead { r, remains: 0 }
+        DemuxRead { r, current_packet_len: 0 }
     }
 
     /// Return the length of the next real data block.
@@ -39,11 +41,11 @@ impl DemuxRead {
             let mut h = [0u8; 4];
             self.r.read_exact(&mut h)?;
 
-            debug!("got envelope header {}", hex::encode(&h));
+            // debug!("got envelope header {{{}}}", hex::encode(&h));
             let h = u32::from_le_bytes(h);
             let tag = (h >> 24) as u8;
             let len = (h & 0xffffff) as usize;
-            debug!("read envelope tag {} length {:#x}", tag, len);
+            debug!("read envelope tag {:#02x} length {:#x}", tag, len);
             if tag == TAG_DATA {
                 assert!(len > 0);
                 return Ok(len);
@@ -52,9 +54,12 @@ impl DemuxRead {
             // A message: read and display it here
             let mut message = vec![0; len];
             self.r.read_exact(&mut message)?;
-            info!("REMOTE: {}", String::from_utf8_lossy(&message));
+            info!("REMOTE: {}", String::from_utf8_lossy(&message).trim_end());
             if tag == TAG_FATAL {
-                panic!("remote aborted");
+                return Err(io::Error::new(
+                    io::ErrorKind::ConnectionAborted,
+                    "remote signalled fatal error",
+                ));
             }
         }
     }

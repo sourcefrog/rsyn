@@ -46,6 +46,11 @@ impl Connection {
         w.write_i32(MY_PROTOCOL_VERSION)?;
 
         let server_version = r.read_i32().unwrap();
+        assert_eq!(
+            server_version, MY_PROTOCOL_VERSION,
+            "server version {} not supported?",
+            server_version
+        );
         let salt = r.read_i32().unwrap();
         debug!(
             "connected to server version {}, salt {:#x}",

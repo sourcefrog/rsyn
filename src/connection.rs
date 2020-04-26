@@ -12,7 +12,7 @@ use crate::flist::read_file_list;
 use crate::mux::DemuxRead;
 use crate::proto::{ReadProto, WriteProto};
 
-const MY_PROTOCOL_VERSION: u32 = 29;
+const MY_PROTOCOL_VERSION: i32 = 29;
 
 pub struct Connection {
     r: Box<dyn Read>,
@@ -24,16 +24,15 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn local_subprocess() -> Connection {
+    pub fn local_subprocess(path: &str) -> io::Result<Connection> {
         let mut child = Command::new("rsync")
             .arg("--server")
             .arg("--sender")
             .arg("-vvr")
-            .arg("/etc")
+            .arg(path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .spawn()
-            .expect("Failed to launch rsync");
+            .spawn()?;
 
         // We can ignore the actual child object, although we could keep it
         // if we care about the subprocess exit code.
@@ -43,9 +42,8 @@ impl Connection {
         Connection::handshake(r, w)
     }
 
-    fn handshake(mut r: Box<dyn Read>, mut w: Box<dyn Write>) -> Connection {
-        let b = MY_PROTOCOL_VERSION.to_le_bytes();
-        w.write_all(&b).expect("failed to send version to child");
+    fn handshake(mut r: Box<dyn Read>, mut w: Box<dyn Write>) -> io::Result<Connection> {
+        w.write_i32(MY_PROTOCOL_VERSION)?;
 
         let server_version = r.read_i32().unwrap();
         let salt = r.read_i32().unwrap();
@@ -54,21 +52,22 @@ impl Connection {
             server_version, salt
         );
 
-        // Server-to-client is multiplexed; client-to-server is not.
-        Connection {
+        Ok(Connection {
+            // Server-to-client is multiplexed; client-to-server is not.
             r: Box::new(DemuxRead::new(r)),
             w,
             server_version,
             salt,
-        }
+        })
     }
 
-    pub fn list_files(&mut self) {
+    pub fn list_files(&mut self) -> io::Result<()> {
         // send exclusion list length of 0
         self.send_exclusions();
-        for e in read_file_list(&mut self.r).unwrap().iter() {
+        for e in read_file_list(&mut self.r)?.iter() {
             println!("{}", String::from_utf8_lossy(&e.name));
         }
+        Ok(())
     }
 
     fn send_exclusions(&mut self) {

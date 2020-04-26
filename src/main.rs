@@ -1,3 +1,5 @@
+use std::io;
+
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
@@ -25,9 +27,10 @@ fn setup_logger() {
         .expect("failed to configure logger")
 }
 
-fn main() {
+fn main() -> io::Result<()> {
     setup_logger();
-    let mut conn = Connection::local_subprocess();
-    conn.list_files();
+    let mut conn = Connection::local_subprocess("/etc")?;
+    conn.list_files()?;
     debug!("that's all folks");
+    Ok(())
 }

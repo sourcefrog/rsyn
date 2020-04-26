@@ -11,4 +11,3 @@ publish = false
 fern = "0.6"
 hex = "0.4.2"
 log = "0.4"
-nom = "5.0.0"

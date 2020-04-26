@@ -4,7 +4,6 @@ use log::{debug, error, info, trace, warn};
 mod connection;
 mod flist;
 mod mux;
-mod parser;
 mod proto;
 
 use connection::Connection;

@@ -10,7 +10,6 @@ use log::{debug, error, info, trace, warn};
 
 use crate::flist::read_file_list;
 use crate::mux::DemuxRead;
-use crate::parser;
 use crate::proto::{ReadProto, WriteProto};
 
 const MY_PROTOCOL_VERSION: u32 = 29;
@@ -19,9 +18,9 @@ pub struct Connection {
     r: Box<dyn Read>,
     w: Box<dyn Write>,
     #[allow(unused)]
-    server_version: u32,
+    server_version: i32,
     #[allow(unused)]
-    salt: u32,
+    salt: i32,
 }
 
 impl Connection {
@@ -48,10 +47,8 @@ impl Connection {
         let b = MY_PROTOCOL_VERSION.to_le_bytes();
         w.write_all(&b).expect("failed to send version to child");
 
-        let mut b = [0u8; 8];
-        r.read_exact(&mut b).unwrap();
-        let (rest, (server_version, salt)) = parser::server_greeting(&b).unwrap();
-        assert!(rest.is_empty());
+        let server_version = r.read_i32().unwrap();
+        let salt = r.read_i32().unwrap();
         debug!(
             "connected to server version {}, salt {:#x}",
             server_version, salt

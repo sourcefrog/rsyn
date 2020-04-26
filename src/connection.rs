@@ -86,7 +86,7 @@ impl Connection {
         assert_eq!(self.r.read_i32()?, -1);
         self.w.write_i32(-1)?; // end-of-sequence marker
         assert_eq!(self.r.read_i32()?, -1);
-        info!("server statistics: {:#?}", self.r.read_server_statistics()?);
+        info!("server statistics: {:#?}", crate::statistics::ServerStatistics::read(&mut self.r)?);
 
         // one more end?
         self.w.write_i32(-1)?;

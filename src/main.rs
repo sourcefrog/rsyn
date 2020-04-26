@@ -7,6 +7,7 @@ mod connection;
 mod flist;
 mod mux;
 mod proto;
+mod statistics;
 
 use connection::Connection;
 

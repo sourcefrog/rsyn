@@ -19,10 +19,10 @@ pub struct FileEntry {
     /// The name received as a byte string.
     // TODO: Perhaps this should be an OSString, but it's not necessarily in the
     // *local* OS's format.
-    name: Vec<u8>,
-    file_len: i64,
-    mode: i32,
-    mtime: i32,
+    pub name: Vec<u8>,
+    pub file_len: i64,
+    pub mode: i32,
+    pub mtime: i32,
 }
 
 pub fn read_file_list(r: &mut (dyn io::Read + 'static)) -> io::Result<Vec<FileEntry>> {

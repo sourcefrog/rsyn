@@ -66,7 +66,9 @@ impl Connection {
     pub fn list_files(&mut self) {
         // send exclusion list length of 0
         self.send_exclusions();
-        read_file_list(&mut self.r).unwrap();
+        for e in read_file_list(&mut self.r).unwrap().iter() {
+            println!("{}", String::from_utf8_lossy(&e.name));
+        }
     }
 
     fn send_exclusions(&mut self) {

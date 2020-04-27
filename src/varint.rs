@@ -56,7 +56,7 @@ pub struct WriteVarint {
 
 impl WriteVarint {
     pub fn new(w: Box<dyn io::Write>) -> WriteVarint {
-        WriteVarint{ w }
+        WriteVarint { w }
     }
 
     pub fn write_i32(&mut self, v: i32) -> io::Result<()> {

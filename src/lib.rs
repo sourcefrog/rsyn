@@ -4,7 +4,7 @@ mod connection;
 mod flist;
 pub mod logging;
 mod mux;
-mod varint;
 mod statistics;
+mod varint;
 
 pub use connection::Connection;

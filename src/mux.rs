@@ -29,7 +29,10 @@ impl DemuxRead {
     /// Construct a new packet demuxer, wrapping an underlying Read (typically
     /// a pipe).
     pub fn new(r: Box<dyn Read>) -> DemuxRead {
-        DemuxRead { r, current_packet_len: 0 }
+        DemuxRead {
+            r,
+            current_packet_len: 0,
+        }
     }
 
     /// Return the length of the next real data block.
@@ -75,7 +78,6 @@ impl DemuxRead {
         }
     }
 }
-
 
 // TODO: Maybe add buffering and flushing, so that every single write is
 // not sent as a single packet.

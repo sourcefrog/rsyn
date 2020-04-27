@@ -3,6 +3,8 @@
 use std::fmt;
 use std::io;
 
+use chrono::{Local, TimeZone};
+
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
@@ -26,15 +28,21 @@ pub struct FileEntry {
     pub mtime: i32,
 }
 
+impl FileEntry {
+    pub fn mtime_timestamp(&self) -> chrono::DateTime<Local> {
+        Local.timestamp(self.mtime as i64, 0)
+    }
+}
+
 // lrwxr-xr-x          11 2020/02/28 07:33:44 etc
 impl fmt::Display for FileEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{:08} {:10} {:20} {}",
+            "{:08} {:11} {:19} {}",
             unix_mode_to_string(self.mode),
             self.file_len,
-            self.mtime,
+            self.mtime_timestamp().format("%Y-%m-%d %H:%M:%S"),
             String::from_utf8_lossy(&self.name)
         )
     }

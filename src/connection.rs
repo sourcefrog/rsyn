@@ -8,7 +8,7 @@ use std::process::{Child, Command, Stdio};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::flist::{FileList, read_file_list};
+use crate::flist::{read_file_list, FileList};
 use crate::mux::DemuxRead;
 use crate::varint::{ReadVarint, WriteVarint};
 

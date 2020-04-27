@@ -1,3 +1,10 @@
+//! Length-prefixed, typed, packets multiplexed onto a byte stream.
+//!
+//! The main function of these is to allow remote error/message strings
+//! to be mixed in with normal data transfer.
+//!
+//! This format is used only from the remote server to the client.
+
 use std::io;
 use std::io::prelude::*;
 
@@ -8,8 +15,9 @@ const TAG_DATA: u8 = 7;
 const TAG_FATAL: u8 = 1;
 
 pub struct DemuxRead {
+    /// Underlying stream.
     r: Box<dyn Read>,
-    /// Amount of data from previous packet remaining to read out
+    /// Amount of data from previous packet remaining to read out.
     current_packet_len: usize,
 }
 
@@ -58,7 +66,7 @@ impl DemuxRead {
             // debug!("got envelope header {{{}}}", hex::encode(&h));
             let h = u32::from_le_bytes(h);
             let tag = (h >> 24) as u8;
-            let len = (h & 0xffffff) as usize;
+            let len = (h & 0xff_ffff) as usize;
             debug!("read envelope tag {:#02x} length {:#x}", tag, len);
             if tag == TAG_DATA {
                 assert!(len > 0);
@@ -102,7 +110,7 @@ impl Write for MuxWrite {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let l = buf.len();
         assert!(
-            l < 0x0ffffff,
+            l < 0x0ff_ffff,
             "data length {:#x} is too much for one packet",
             l
         );

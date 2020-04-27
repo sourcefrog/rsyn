@@ -1,11 +1,11 @@
+//! Read and write rsync's integer encoding scheme: u8, i32, i64, and byte strings.
+
 use std::io;
 use std::io::prelude::*;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-/// Extension trait to read rsync variable-integer encodings and known-length
-/// byte strings.
 pub struct ReadVarint {
     r: Box<dyn Read>,
 }

@@ -7,7 +7,7 @@ use rsyn::Connection;
 
 fn main() -> io::Result<()> {
     rsyn::logging::default_logging();
-    let mut conn = Connection::local_subprocess("/etc")?;
+    let conn = Connection::local_subprocess("/etc")?;
     conn.list_files()?;
     debug!("that's all folks");
     Ok(())

@@ -13,12 +13,14 @@ lazy_static! {
 
 #[test]
 fn list_files_etc() -> io::Result<()> {
+    install_test_logger();
     let _flist = Connection::local_subprocess("/etc")?.list_files()?;
     Ok(())
 }
 
 #[test]
 fn list_files_dev() -> io::Result<()> {
+    install_test_logger();
     let _flist = Connection::local_subprocess("/dev")?.list_files()?;
     Ok(())
 }

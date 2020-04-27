@@ -3,7 +3,7 @@
 use std::io;
 use std::io::prelude::*;
 use std::io::ErrorKind;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -17,10 +17,14 @@ const MY_PROTOCOL_VERSION: i32 = 29;
 pub struct Connection {
     rv: ReadVarint,
     wv: WriteVarint,
+
     #[allow(unused)]
     server_version: i32,
+
     #[allow(unused)]
     salt: i32,
+
+    child: Child,
 }
 
 // TODO: Clean shutdown: close write, check there's no more to read, and
@@ -41,10 +45,10 @@ impl Connection {
         let r = Box::new(child.stdout.take().expect("child has no stdout"));
         let w = Box::new(child.stdin.take().expect("child has no stdin"));
 
-        Connection::handshake(r, w)
+        Connection::handshake(r, w, child)
     }
 
-    fn handshake(r: Box<dyn Read>, w: Box<dyn Write>) -> io::Result<Connection> {
+    fn handshake(r: Box<dyn Read>, w: Box<dyn Write>, child: Child) -> io::Result<Connection> {
         let mut wv = WriteVarint::new(w);
         let mut rv = ReadVarint::new(r);
 
@@ -72,10 +76,11 @@ impl Connection {
             wv,
             server_version,
             salt,
+            child,
         })
     }
 
-    pub fn list_files(&mut self) -> io::Result<()> {
+    pub fn list_files(mut self) -> io::Result<()> {
         // send exclusion list length of 0
         self.send_exclusions();
         for e in read_file_list(&mut self.rv)?.iter() {
@@ -102,7 +107,32 @@ impl Connection {
 
         // one more end?
         self.wv.write_i32(-1)?;
-        // TODO: Drain out any remaining logs?
+        self.shutdown()
+    }
+
+    /// Shut down this connection, consuming the object.
+    fn shutdown(self) -> io::Result<()> {
+        let Connection {
+            mut rv,
+            wv,
+            server_version: _,
+            salt: _,
+            mut child,
+        } = self;
+
+        // There should be no more bytes to read from rv.
+        match rv.read_u8() {
+            Ok(b) => panic!("connection has more input data at shutdown: {:#x}", b),
+            // In this case the EOF is actually what we expect.
+            Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => (),
+            Err(e) => panic!("unexpected error kind at shutdown: {:?}", e),
+        };
+        drop(rv);
+        drop(wv);
+
+        // TODO: Should this be returned, somehow?
+        info!("child process exited with status {}", child.wait()?);
+
         Ok(())
     }
 

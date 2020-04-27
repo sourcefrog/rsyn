@@ -8,7 +8,7 @@ use std::process::{Child, Command, Stdio};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::flist::read_file_list;
+use crate::flist::{FileList, read_file_list};
 use crate::mux::DemuxRead;
 use crate::varint::{ReadVarint, WriteVarint};
 
@@ -27,9 +27,11 @@ pub struct Connection {
     child: Child,
 }
 
-// TODO: Clean shutdown: close write, check there's no more to read, and
-// wait on the child.
+/// Connection to an rsync server.
+///
+/// Each connection can do only one operation: list files, send, or receive.
 impl Connection {
+    /// Open a new connection to a local rsync subprocess.
     pub fn local_subprocess(path: &str) -> io::Result<Connection> {
         let mut child = Command::new("rsync")
             .arg("--server")
@@ -80,12 +82,11 @@ impl Connection {
         })
     }
 
-    pub fn list_files(mut self) -> io::Result<()> {
+    /// Return a list of files from the server.
+    pub fn list_files(mut self) -> io::Result<FileList> {
         // send exclusion list length of 0
         self.send_exclusions();
-        for e in read_file_list(&mut self.rv)?.iter() {
-            println!("{}", String::from_utf8_lossy(&e.name));
-        }
+        let file_list = read_file_list(&mut self.rv)?;
         // TODO: With -o, get uid list.
         // TODO: With -g, get gid list.
 
@@ -107,10 +108,14 @@ impl Connection {
 
         // one more end?
         self.wv.write_i32(-1)?;
-        self.shutdown()
+        self.shutdown()?;
+        Ok(file_list)
     }
 
     /// Shut down this connection, consuming the object.
+    ///
+    /// This isn't the drop method, because it only makes sense to do after
+    /// the protocol has reached the natural end.
     fn shutdown(self) -> io::Result<()> {
         let Connection {
             mut rv,

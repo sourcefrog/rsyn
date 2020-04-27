@@ -25,7 +25,9 @@ pub struct FileEntry {
     pub mtime: i32,
 }
 
-pub fn read_file_list(r: &mut ReadVarint) -> io::Result<Vec<FileEntry>> {
+pub type FileList = Vec<FileEntry>;
+
+pub fn read_file_list(r: &mut ReadVarint) -> io::Result<FileList> {
     // TODO: Support receipt of uid and gid with -o, -g.
     // TODO: Support devices, links, etc.
 

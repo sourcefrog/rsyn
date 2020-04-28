@@ -4,9 +4,8 @@ version = "0.1.0"
 authors = ["Martin Pool <mbp@google.com>"]
 edition = "2018"
 publish = false
-description = "Wire-compatible rsync client"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "[pre-alpha] Wire-compatible rsync client"
+categories = ["filesystem", "network-programming"]
 
 [dependencies]
 chrono = "0.4.11"

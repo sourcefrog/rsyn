@@ -19,11 +19,29 @@ use rsyn::Connection;
 struct Opt {
     /// Directory to list.
     file: PathBuf,
+
+    /// Turn on verbose debugging output.
+    // TODO: Perhaps take an optarg controlling filtering per module?
+    #[structopt(long)]
+    debug: bool,
 }
 
 fn main() -> io::Result<()> {
     let opt = Opt::from_args();
-    rsyn::logging::default_logging();
+
+    let log_level = if opt.debug {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    };
+    fern::Dispatch::new()
+        .format(rsyn::logging::format_log)
+        .level(log_level)
+        .chain(std::io::stderr())
+        .chain(fern::log_file("rsyn.log").expect("failed to open log file"))
+        .apply()
+        .expect("failed to configure logger");
+
     let file_list = Connection::local_subprocess(&opt.file)?.list_files()?;
     for entry in file_list {
         println!("{}", &entry)

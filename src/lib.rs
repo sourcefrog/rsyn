@@ -8,3 +8,6 @@ mod statistics;
 mod varint;
 
 pub use connection::Connection;
+
+/// General Result type from rsyn APIs.
+pub use anyhow::Result;

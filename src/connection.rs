@@ -8,6 +8,7 @@ use std::io::ErrorKind;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 
+use anyhow::{bail, Context, Result};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
@@ -38,7 +39,7 @@ pub struct Connection {
 /// TODO: Support other connection modes, especially SSH and daemon.
 impl Connection {
     /// Open a new connection to a local rsync subprocess.
-    pub fn local_subprocess<P: AsRef<Path>>(path: P) -> io::Result<Connection> {
+    pub fn local_subprocess<P: AsRef<Path>>(path: P) -> Result<Connection> {
         let mut child = Command::new("rsync")
             .arg("--server")
             .arg("--sender")
@@ -46,7 +47,8 @@ impl Connection {
             .arg(path.as_ref())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .spawn()?;
+            .spawn()
+            .context("Failed to launch rsync subprocess")?;
 
         // We can ignore the actual child object, although we could keep it
         // if we care about the subprocess exit code.
@@ -56,14 +58,14 @@ impl Connection {
         Connection::handshake(r, w, child)
     }
 
-    fn handshake(r: Box<dyn Read>, w: Box<dyn Write>, child: Child) -> io::Result<Connection> {
+    fn handshake(r: Box<dyn Read>, w: Box<dyn Write>, child: Child) -> Result<Connection> {
         let mut wv = WriteVarint::new(w);
         let mut rv = ReadVarint::new(r);
 
         wv.write_i32(MY_PROTOCOL_VERSION)?;
         let server_version = rv.read_i32().unwrap();
         if server_version < MY_PROTOCOL_VERSION {
-            panic!("server protocol version {} is too old", server_version);
+            bail!("server protocol version {} is too old", server_version);
         }
         // The server and client agree to use the minimum supported version, which will now be
         // ours.

@@ -1,13 +1,12 @@
 //! Command-line program for rsyn, an rsync client in Rust.
 
-use std::io;
 use std::path::PathBuf;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use structopt::StructOpt;
 
-use rsyn::Connection;
+use rsyn::{Connection, Result};
 
 #[derive(Debug, StructOpt)]
 #[structopt()]
@@ -26,7 +25,7 @@ struct Opt {
     debug: bool,
 }
 
-fn main() -> io::Result<()> {
+fn main() -> Result<()> {
     let opt = Opt::from_args();
 
     let log_level = if opt.debug {
@@ -40,7 +39,7 @@ fn main() -> io::Result<()> {
         .chain(std::io::stderr())
         .chain(fern::log_file("rsyn.log").expect("failed to open log file"))
         .apply()
-        .expect("failed to configure logger");
+        .expect("Failed to configure logger");
 
     let file_list = Connection::local_subprocess(&opt.path)?.list_files()?;
     for entry in file_list {

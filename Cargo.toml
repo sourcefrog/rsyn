@@ -14,5 +14,6 @@ hex = "0.4.2"
 log = "0.4"
 structopt = { version = "0.3" , features = [ "wrap_help", "suggestions" ]}
 unix_mode = { path = "unix_mode" }
+anyhow = "1.0.28"
 
 [dev-dependencies]

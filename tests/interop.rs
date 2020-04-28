@@ -1,18 +1,18 @@
 //! Test this library's compatibility by running original Tridge rsync.
 
-use std::io;
+use anyhow::Result;
 
 use rsyn::Connection;
 
 #[test]
-fn list_files_etc() -> io::Result<()> {
+fn list_files_etc() -> Result<()> {
     install_test_logger();
     let _flist = Connection::local_subprocess("/etc")?.list_files()?;
     Ok(())
 }
 
 #[test]
-fn list_files_dev() -> io::Result<()> {
+fn list_files_dev() -> Result<()> {
     install_test_logger();
     let _flist = Connection::local_subprocess("/dev")?.list_files()?;
     Ok(())

@@ -3,6 +3,7 @@
 use std::io;
 use std::io::prelude::*;
 
+use anyhow::{Context, Error, Result};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
@@ -48,12 +49,16 @@ impl ReadVarint {
     }
 
     // Destructively test that this is at the end of the input.
+    //
+    // Returns an error either on an IO error, or if there's any remaining
+    // data. The remaining data will be unreachable (and corrupt.) Returns Ok(())
+    // on a clean end.
     #[allow(unused)]
-    pub fn check_for_eof(mut self) -> io::Result<bool> {
-        match self.read_u8() {
-            Ok(_) => Ok(false),
-            Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => Ok(true),
-            Err(e) => Err(e),
+    pub fn check_for_eof(mut self) -> Result<()> {
+        match self.read_u8().and(Ok(())) {
+            Ok(_) => Err(Error::msg("Data found when we expected end of stream")),
+            Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => Ok(()),
+            e => e.context("Error looking for end of stream"),
         }
     }
 }
@@ -97,6 +102,6 @@ mod test {
             0xff, 0xff, 0xff, 0xff, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
         ]);
         assert_eq!(rv.read_i64().unwrap(), 0x7766554433221100);
-        assert_eq!(rv.check_for_eof().unwrap(), true);
+        rv.check_for_eof().unwrap();
     }
 }

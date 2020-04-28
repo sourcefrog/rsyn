@@ -23,7 +23,7 @@ pub struct DemuxRead {
 }
 
 impl Read for DemuxRead {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         if self.current_packet_len == 0 {
             self.current_packet_len = self.read_header_consume_messages()?;
         }
@@ -50,7 +50,7 @@ impl DemuxRead {
     /// them.
     ///
     /// Returns Ok(0) for a clean EOF before the start of the packet.
-    fn read_header_consume_messages(&mut self) -> std::io::Result<usize> {
+    fn read_header_consume_messages(&mut self) -> io::Result<usize> {
         loop {
             // Read a length-prefixed packet from peer.
             let mut h = [0u8; 4];
@@ -70,7 +70,12 @@ impl DemuxRead {
             let len = (h & 0xff_ffff) as usize;
             debug!("read envelope tag {:#02x} length {:#x}", tag, len);
             if tag == TAG_DATA {
-                assert!(len > 0);
+                if len == 0 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Zero-length data packet received",
+                    ));
+                }
                 return Ok(len);
             }
 
@@ -88,7 +93,7 @@ impl DemuxRead {
     }
 }
 
-// TODO: Maybe add buffering and flushing, so that every single write is
+// MAYBE: Add buffering and flushing, so that every single write is
 // not sent as a single packet.
 
 /// Translate a stream of bytes into length-prefixed packets.

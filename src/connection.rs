@@ -91,15 +91,18 @@ impl Connection {
     }
 
     /// Return a list of files from the server.
-    pub fn list_files(mut self) -> io::Result<FileList> {
+    pub fn list_files(mut self) -> Result<FileList> {
         // send exclusion list length of 0
-        self.send_exclusions();
+        self.send_exclusions()?;
         let file_list = read_file_list(&mut self.rv)?;
         // TODO: With -o, get uid list.
         // TODO: With -g, get gid list.
 
         // TODO: Only if protocol <30?
-        let io_error_count = self.rv.read_i32()?;
+        let io_error_count = self
+            .rv
+            .read_i32()
+            .context("Failed to read server error count")?;
         if io_error_count > 0 {
             warn!("server reports {} IO errors", io_error_count);
         }
@@ -111,9 +114,11 @@ impl Connection {
         assert_eq!(self.rv.read_i32()?, -1);
         self.wv.write_i32(-1)?; // end-of-sequence marker
         assert_eq!(self.rv.read_i32()?, -1);
+        // TODO: Return the statistics.
         info!(
             "server statistics: {:#?}",
-            crate::statistics::ServerStatistics::read(&mut self.rv)?
+            crate::statistics::ServerStatistics::read(&mut self.rv)
+                .context("Failed to read server statistics")?
         );
 
         // one more end?
@@ -126,7 +131,7 @@ impl Connection {
     ///
     /// This isn't the drop method, because it only makes sense to do after
     /// the protocol has reached the natural end.
-    fn shutdown(self) -> io::Result<()> {
+    fn shutdown(self) -> Result<()> {
         let Connection {
             rv,
             wv,
@@ -135,11 +140,7 @@ impl Connection {
             mut child,
         } = self;
 
-        match rv.check_for_eof() {
-            Ok(true) => (),
-            Ok(false) => panic!("connection has more input data at shutdown"),
-            Err(e) => panic!("unexpected error kind at shutdown: {:?}", e),
-        };
+        rv.check_for_eof()?;
         drop(wv);
 
         // TODO: Should this be returned, somehow?
@@ -149,7 +150,9 @@ impl Connection {
         Ok(())
     }
 
-    fn send_exclusions(&mut self) {
-        self.wv.write_i32(0).unwrap();
+    fn send_exclusions(&mut self) -> Result<()> {
+        self.wv
+            .write_i32(0)
+            .context("Failed to send exclusion list")
     }
 }

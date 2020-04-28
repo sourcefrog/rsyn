@@ -98,7 +98,9 @@ impl Connection {
 
         // TODO: Only if protocol <30?
         let io_error_count = self.rv.read_i32()?;
-        info!("server reports IO errors on {} files", io_error_count);
+        if io_error_count > 0 {
+            warn!("server reports {} IO errors", io_error_count);
+        }
 
         // Request no files.
         self.wv.write_i32(-1)?; // end of phase 1

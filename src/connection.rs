@@ -1,3 +1,5 @@
+//! Open a connection to the remote server, and do top-level operations on it.
+
 #![allow(unused_imports)]
 
 use std::io;
@@ -29,7 +31,10 @@ pub struct Connection {
 
 /// Connection to an rsync server.
 ///
-/// Each connection can do only one operation: list files, send, or receive.
+/// Due to the protocol definition, only one transfer (list, send, or receive) can be done per
+/// connection.
+///
+/// TODO: Support other connection modes, especially SSH and daemon.
 impl Connection {
     /// Open a new connection to a local rsync subprocess.
     pub fn local_subprocess(path: &str) -> io::Result<Connection> {
@@ -55,13 +60,13 @@ impl Connection {
         let mut rv = ReadVarint::new(r);
 
         wv.write_i32(MY_PROTOCOL_VERSION)?;
-
         let server_version = rv.read_i32().unwrap();
-        assert_eq!(
-            server_version, MY_PROTOCOL_VERSION,
-            "server version {} not supported?",
-            server_version
-        );
+        if server_version < MY_PROTOCOL_VERSION {
+            panic!("server protocol version {} is too old", server_version);
+        }
+        // The server and client agree to use the minimum supported version, which will now be
+        // ours.
+
         let salt = rv.read_i32().unwrap();
         debug!(
             "connected to server version {}, salt {:#x}",

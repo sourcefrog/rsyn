@@ -18,7 +18,7 @@ use rsyn::Connection;
 /// protocol.
 struct Opt {
     /// Directory to list.
-    file: PathBuf,
+    path: PathBuf,
 
     /// Turn on verbose debugging output.
     // TODO: Perhaps take an optarg controlling filtering per module?
@@ -42,7 +42,7 @@ fn main() -> io::Result<()> {
         .apply()
         .expect("failed to configure logger");
 
-    let file_list = Connection::local_subprocess(&opt.file)?.list_files()?;
+    let file_list = Connection::local_subprocess(&opt.path)?.list_files()?;
     for entry in file_list {
         println!("{}", &entry)
     }

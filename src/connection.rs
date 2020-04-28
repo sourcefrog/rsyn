@@ -126,21 +126,18 @@ impl Connection {
     /// the protocol has reached the natural end.
     fn shutdown(self) -> io::Result<()> {
         let Connection {
-            mut rv,
+            rv,
             wv,
             server_version: _,
             salt: _,
             mut child,
         } = self;
 
-        // There should be no more bytes to read from rv.
-        match rv.read_u8() {
-            Ok(b) => panic!("connection has more input data at shutdown: {:#x}", b),
-            // In this case the EOF is actually what we expect.
-            Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => (),
+        match rv.check_for_eof() {
+            Ok(true) => (),
+            Ok(false) => panic!("connection has more input data at shutdown"),
             Err(e) => panic!("unexpected error kind at shutdown: {:?}", e),
         };
-        drop(rv);
         drop(wv);
 
         // TODO: Should this be returned, somehow?

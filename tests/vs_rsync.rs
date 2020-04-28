@@ -4,13 +4,6 @@ use std::io;
 
 use rsyn::Connection;
 
-use lazy_static::lazy_static;
-
-lazy_static! {
-    /// This is an example for using doc comment attributes
-    static ref LOGGER_DONE: () = install_test_logger();
-}
-
 #[test]
 fn list_files_etc() -> io::Result<()> {
     install_test_logger();
@@ -26,7 +19,9 @@ fn list_files_dev() -> io::Result<()> {
 }
 
 fn install_test_logger() {
-    // This'll fail if called twice; don't worry.
+    // The global logger can only be installed once per process, but this'll be called for
+    // many tests within the same process. They all try to install the same thing, so don't
+    // worry if it fails.
     let _ = fern::Dispatch::new()
         .format(rsyn::logging::format_log)
         .level(log::LevelFilter::Debug)

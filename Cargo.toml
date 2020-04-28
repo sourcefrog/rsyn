@@ -16,4 +16,3 @@ structopt = { version = "0.3" , features = [ "wrap_help", "suggestions" ]}
 unix_mode = { path = "unix_mode" }
 
 [dev-dependencies]
-lazy_static = "1.4.0"

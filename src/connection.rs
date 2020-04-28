@@ -38,12 +38,12 @@ pub struct Connection {
 /// TODO: Support other connection modes, especially SSH and daemon.
 impl Connection {
     /// Open a new connection to a local rsync subprocess.
-    pub fn local_subprocess(path: &Path) -> io::Result<Connection> {
+    pub fn local_subprocess<P: AsRef<Path>>(path: P) -> io::Result<Connection> {
         let mut child = Command::new("rsync")
             .arg("--server")
             .arg("--sender")
             .arg("-vvr")
-            .arg(path)
+            .arg(path.as_ref())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()?;

@@ -27,3 +27,12 @@ really representing the rsh command?
 
 I guess this is set for daemon connections from arguments constructed in
 `server_options`. 
+
+## varint encoding 
+
+The openrsync docs say that a 8-byte long is preceded by a maximum integer, but
+it's actually preceded by `(int32) 0xffff_ffff`, in other words -1. (See
+`read_longint`.
+
+In addition to this encoding, there's also `read_varlong` which seems to read a
+genuinely-variable length encoding.

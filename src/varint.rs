@@ -32,9 +32,8 @@ impl ReadVarint {
     }
 
     pub fn read_i64(&mut self) -> io::Result<i64> {
-        // Smaller values are encoded as 4 bytes.
         let v = self.read_i32()?;
-        if v < i32::MAX {
+        if v != -1 {
             Ok(v as i64)
         } else {
             let mut buf = [0; 8];
@@ -46,6 +45,15 @@ impl ReadVarint {
     /// Return the underlying stream, consuming this wrapper.
     pub fn take(self) -> Box<dyn Read> {
         self.r
+    }
+
+    // Destructively test that this is at the end of the input.
+    #[allow(unused)]
+    pub fn assert_is_at_end(mut self) {
+        assert_eq!(
+            self.read_u8().unwrap_err().kind(),
+            io::ErrorKind::UnexpectedEof
+        );
     }
 }
 
@@ -68,5 +76,26 @@ impl WriteVarint {
     pub fn write_u8(&mut self, v: u8) -> io::Result<()> {
         // debug!("send {:#x}", v);
         self.w.write_all(&[v])
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn make_rv(s: &'static [u8]) -> ReadVarint {
+        ReadVarint::new(Box::new(s))
+    }
+
+    #[test]
+    fn read_i64() {
+        let mut rv = make_rv(&[0x10, 0, 0, 0]);
+        assert_eq!(rv.read_i64().unwrap(), 0x10);
+
+        let mut rv = make_rv(&[
+            0xff, 0xff, 0xff, 0xff, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        ]);
+        assert_eq!(rv.read_i64().unwrap(), 0x7766554433221100);
+        rv.assert_is_at_end();
     }
 }

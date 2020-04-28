@@ -11,6 +11,7 @@ use std::io::prelude::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+// TODO: Handle other message types from rsync `read_a_msg`.
 const TAG_DATA: u8 = 7;
 const TAG_FATAL: u8 = 1;
 

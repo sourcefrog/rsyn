@@ -142,6 +142,7 @@ impl Connection {
         drop(wv);
 
         // TODO: Should this be returned, somehow?
+        // TODO: Should we timeout after a while?
         info!("child process exited with status {}", child.wait()?);
 
         Ok(())

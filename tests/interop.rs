@@ -4,14 +4,20 @@ use anyhow::Result;
 
 use rsyn::Connection;
 
+#[cfg(unix)]
 #[test]
+/// Only on Unix: list `/etc`, a good natural source of files with different
+/// permissions, including some probably not readable to the non-root
+/// user running this test.
 fn list_files_etc() -> Result<()> {
     install_test_logger();
     let _flist = Connection::local_subprocess("/etc")?.list_files()?;
     Ok(())
 }
 
+#[cfg(unix)]
 #[test]
+/// Only on Unix: list `/dev`, a good source of devices and unusual files.
 fn list_files_dev() -> Result<()> {
     install_test_logger();
     let _flist = Connection::local_subprocess("/dev")?.list_files()?;

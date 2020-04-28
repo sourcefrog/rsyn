@@ -5,6 +5,7 @@
 use std::io;
 use std::io::prelude::*;
 use std::io::ErrorKind;
+use std::path::Path;
 use std::process::{Child, Command, Stdio};
 
 #[allow(unused_imports)]
@@ -37,7 +38,7 @@ pub struct Connection {
 /// TODO: Support other connection modes, especially SSH and daemon.
 impl Connection {
     /// Open a new connection to a local rsync subprocess.
-    pub fn local_subprocess(path: &str) -> io::Result<Connection> {
+    pub fn local_subprocess(path: &Path) -> io::Result<Connection> {
         let mut child = Command::new("rsync")
             .arg("--server")
             .arg("--sender")

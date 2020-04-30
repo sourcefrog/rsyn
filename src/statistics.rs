@@ -1,6 +1,6 @@
-// rsyn: wire-compatible rsync reimplementation in Rust.
-
 //! Statistics/counter structs.
+
+// rsyn: wire-compatible rsync reimplementation in Rust.
 
 use std::io;
 
@@ -16,7 +16,7 @@ pub struct ServerStatistics {
 }
 
 impl ServerStatistics {
-    pub fn read(rv: &mut ReadVarint) -> io::Result<ServerStatistics> {
+    pub(crate) fn read(rv: &mut ReadVarint) -> io::Result<ServerStatistics> {
         // TODO: Perhaps this should be part of the Connection, or some place
         // that knows the protocol version.
         Ok(ServerStatistics {

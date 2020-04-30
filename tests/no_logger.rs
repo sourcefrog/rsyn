@@ -4,6 +4,8 @@ use rsyn::Connection;
 #[test]
 fn list_files_with_no_logger() {
     // TODO: Assertions about the contents.
-    Connection::local_subprocess("./src").expect("Failed to connect")
-        .list_files().expect("Failed to list files");
+    Connection::local_subprocess("./src")
+        .expect("Failed to connect")
+        .list_files()
+        .expect("Failed to list files");
 }

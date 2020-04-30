@@ -6,7 +6,8 @@
 //! // Open a connection to a local rsync server, and list the source directory.
 //! let flist = rsyn::Connection::local_subprocess("./src").unwrap()
 //!     .list_files().unwrap();
-//! // You should see a `lib.rs` in it.
+//!
+//! // We can see the `lib.rs` in the listing.
 //! assert!(flist.iter().any(|fe|
 //!     String::from_utf8_lossy(&fe.name).ends_with("lib.rs")));
 //! ```

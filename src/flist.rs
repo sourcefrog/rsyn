@@ -18,13 +18,23 @@ const STATUS_REPEAT_PARTIAL_NAME: u8 = 0x20;
 const STATUS_LONG_NAME: u8 = 0x40;
 const STATUS_REPEAT_MTIME: u8 = 0x80;
 
+/// Description of a single file (or directory or symlink etc).
 pub struct FileEntry {
-    /// The name received as a byte string.
+    /// File name, as a byte string, in the (remote) OS's encoding.
+    ///
+    /// rsync doesn't constrain the encoding, so this will typically but not
+    /// necessarily be UTF-8.
     // TODO: Perhaps this should be an OSString, but it's not necessarily in the
     // *local* OS's format.
     pub name: Vec<u8>,
+
+    /// Length of the file, in bytes.
     pub file_len: i64,
+
+    /// Unix mode, containing the file type and permissions.
     pub mode: i32,
+
+    /// Modification time, in seconds since the Unix epoch.
     pub mtime: i32,
 }
 
@@ -34,7 +44,12 @@ impl FileEntry {
     }
 }
 
-// lrwxr-xr-x          11 2020/02/28 07:33:44 etc
+/// Display this entry in a format like that of `ls` and like `rsync` uses in
+/// listing directories:
+///
+/// ```text
+/// lrwxr-xr-x          11 2020/02/28 07:33:44 etc
+/// ```
 impl fmt::Display for FileEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

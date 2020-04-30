@@ -1,4 +1,4 @@
-//! Open a connection to the remote server, and do top-level operations on it.
+//! A connection to an rsync server.
 
 #![allow(unused_imports)]
 
@@ -18,6 +18,10 @@ use crate::varint::{ReadVarint, WriteVarint};
 
 const MY_PROTOCOL_VERSION: i32 = 29;
 
+/// Connection to an rsync server.
+///
+/// Due to the protocol definition, only one transfer (list, send, or receive)
+/// can be done per connection.
 pub struct Connection {
     rv: ReadVarint,
     wv: WriteVarint,
@@ -31,14 +35,12 @@ pub struct Connection {
     child: Child,
 }
 
-/// Connection to an rsync server.
-///
-/// Due to the protocol definition, only one transfer (list, send, or receive) can be done per
-/// connection.
-///
-/// TODO: Support other connection modes, especially SSH and daemon.
 impl Connection {
-    /// Open a new connection to a local rsync subprocess.
+    /// Open a new connection to a local rsync server subprocess, over a pair of
+    /// pipes.
+    ///
+    /// Since this can only read files off the local filesystem, it's mostly
+    /// interesting for testing.
     pub fn local_subprocess<P: AsRef<Path>>(path: P) -> Result<Connection> {
         let mut child = Command::new("rsync")
             .arg("--server")

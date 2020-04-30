@@ -1,14 +1,33 @@
-/// Convert unix mode bits to a typical text string as shown in ls.
+//! Manipulate Unix file mode bits.
+//!
+//! Every filesystem entry (or inode) on Unix has a bit field of
+//! [mode bits](https://en.wikipedia.org/wiki/Modes_(Unix))
+//! that describe both the type of the file and its permissions.
+//!
+//! These are classically displayed in the left of `ls` output, and the permissions
+//! can be changed with `chmod`.
+//!
+//! The encoding is fairly standard across unices, and occurs in some file
+//! formats and network protocols that might be seen on non-Unix platforms.
+//!
+//! This library isn't Unix-specific and doesn't depend on the underlying OS to
+//! interpret the bits.
+
+/// Convert Unix mode bits to a text string describing type and permissions,
+/// as shown in `ls`.
 ///
 /// Examples:
 /// ```
 /// assert_eq!(unix_mode::to_string(0o0040755), "drwxr-xr-x");
 /// assert_eq!(unix_mode::to_string(0o0100640), "-rw-r-----");
-/// // Classic sticky directory
+///
+/// // Classic "sticky" directory
 /// assert_eq!(unix_mode::to_string(0o0041777), "drwxrwxrwt");
+///
 /// // Char and block devices
 /// assert_eq!(unix_mode::to_string(0o0020600), "crw-------");
 /// assert_eq!(unix_mode::to_string(0o0060600), "brw-------");
+///
 /// // Symlink
 /// assert_eq!(unix_mode::to_string(0o0120777), "lrwxrwxrwx");
 ///

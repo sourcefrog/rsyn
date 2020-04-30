@@ -12,6 +12,10 @@ a local rsync subprocess and controlling it over a pair of pipes. (This doesn't
 have much external utility but it's a milestone towards implementing the
 protocol correctly.)
 
+Tested on macOS and Linux, but not yet on Windows.
+
+## Roadmap
+
 Intended next steps are:
 
 1. List a directory over rsync+ssh.
@@ -58,36 +62,37 @@ can do better.
 
 ## Install
 
-Install rust from <https://rustup.rs/> or elsewhere.
+1. Install Rust (and Cargo) from <https://rustup.rs/> or elsewhere.
 
-In this directory, run
+2. In the rsyn source tree, run
 
-    cargo build --release
+    cargo install --release
 
-and there will be a binary in `./target/release/rsyn`.
-
-To run the tests (with `cargo test`) you'll need a local copy of rsync, but this
-shouldn't be needed for the real system.
+To run the interoperability tests (with `cargo test`) you'll need a copy
+of rsync installed.
 
 ## Goals
 
 * Interoperability with original "tridge" rsync, over (first) `rsync+ssh://` or
   (later) `rsync://`.
 
-* Support commonly-used options. Transfer files recursively, with mtimes and
-  permissions, with some exclusions.
+* Support commonly-used options. Most importantly: transfer files recursively,
+  with mtimes and permissions, with some exclusions.
 
-* Command line compatibility: `rsyn -HLWK` should mean the same as in rsync,
+* A clean public Rust API through which transfers can be initiated and observed
+  in-process.
+
+* Command line compatibility: `rsyn -WTFBBQ` should mean the same as in rsync,
   (if those options are supported at all). rsyn-specific options can be behind
   a `-Z` prefix, which is unused by rsync.
 
 * Demonstrate interoperability by automatically testing rsyn against rsync.
   (Later: against various versions of rsync and maybe also openrsync.)
 
-* No `unsafe` blocks or C FFI. (In the tool itself; obviously the underlying
-  Rust libraries have some trusted implementation code.)
+* No `unsafe` blocks or C FFI. (In the tool itself: the underlying
+  Rust libraries have some trusted implementation code and link in some C code.)
 
-* Run on Linux, macOS, Windows, and other Unixes, in roughly that order.
+* Run on Linux, macOS, Windows, and other Unixes.
   (Use Rust concurrency structures that are supported everywhere, rather than
   rsync's creative application of Unix-isms.)
 
@@ -100,12 +105,13 @@ shouldn't be needed for the real system.
 * Work correctly on either 32 or 64-bit platforms.
 
 * Clean code. Use Rust type checking to prevent illegal or unsafe states.
+  Aim to have different options factored out into types that compose together.
 
 Non-goals:
 
-* Support all the _many_ interacting options in rsync. It's grown a lot of them
-  over time, some perhaps fairly niche, and they complicate the protocol and
-  implementation a lot.
+* Necessarily support every single option and feature in rsync. It's grown a
+  lot of options over time, which interact with each other and complicate the
+  protocol and implementation quite a lot.
 
 * Improve or evolve the protocol. It's already weird and complicated, and was
   built for a different environment than exists today. Dramatically new
@@ -115,7 +121,8 @@ Non-goals:
   surprising amount of special case code for things that now seem from a
   different world.)
 
-* Exactly identical behavior.
+* Exactly identical internal behavior, for example in how things are encoded on
+  the wire, or what order files are processed.
 
 * Identical text/log output.
 

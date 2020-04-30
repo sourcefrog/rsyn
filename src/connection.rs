@@ -115,11 +115,9 @@ impl Connection {
         self.wv.write_i32(-1)?; // end-of-sequence marker
         assert_eq!(self.rv.read_i32()?, -1);
         // TODO: Return the statistics.
-        info!(
-            "server statistics: {:#?}",
-            crate::statistics::ServerStatistics::read(&mut self.rv)
-                .context("Failed to read server statistics")?
-        );
+        let server_stats = crate::statistics::ServerStatistics::read(&mut self.rv)
+            .context("Failed to read server statistics")?;
+        info!("server statistics: {:#?}", server_stats);
 
         // one more end?
         self.wv.write_i32(-1)?;
@@ -145,7 +143,8 @@ impl Connection {
 
         // TODO: Should this be returned, somehow?
         // TODO: Should we timeout after a while?
-        info!("child process exited with status {}", child.wait()?);
+        let child_result = child.wait()?;
+        info!("child process exited with status {}", child_result);
 
         Ok(())
     }

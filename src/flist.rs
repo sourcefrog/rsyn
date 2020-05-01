@@ -30,14 +30,10 @@ pub struct FileEntry {
     pub mode: u32,
 
     /// Modification time, in seconds since the Unix epoch.
-    pub mtime: i32,
+    mtime: u32,
 }
 
 impl FileEntry {
-    pub fn mtime_timestamp(&self) -> chrono::DateTime<Local> {
-        Local.timestamp(self.mtime as i64, 0)
-    }
-
     /// Returns the file name, as a byte string, in the (remote) OS's encoding.
     ///
     /// rsync doesn't constrain the encoding, so this will typically, but not
@@ -73,6 +69,17 @@ impl FileEntry {
     pub fn is_symlink(&self) -> bool {
         unix_mode::is_symlink(self.mode)
     }
+
+    /// Returns the modification time, in seconds since the Unix epoch.
+    pub fn unix_mtime(&self) -> u32 {
+        self.mtime
+    }
+
+    /// Returns the modification time as a chrono::DateTime associated to the
+    /// local timezone.
+    pub fn mtime(&self) -> chrono::DateTime<Local> {
+        Local.timestamp(self.mtime as i64, 0)
+    }
 }
 
 /// Display this entry in a format like that of `ls` and like `rsync` uses in
@@ -88,7 +95,7 @@ impl fmt::Display for FileEntry {
             "{:08} {:11} {:19} {}",
             unix_mode::to_string(self.mode),
             self.file_len,
-            self.mtime_timestamp().format("%Y-%m-%d %H:%M:%S"),
+            self.mtime().format("%Y-%m-%d %H:%M:%S"),
             self.name_lossy_string(),
         )
     }
@@ -139,7 +146,7 @@ pub(crate) fn read_file_list(r: &mut ReadVarint) -> io::Result<FileList> {
         debug!("  file_len: {}", file_len);
 
         let mtime = if status & STATUS_REPEAT_MTIME == 0 {
-            r.read_i32()?
+            r.read_i32()? as u32
         } else {
             v.last().unwrap().mtime
         };

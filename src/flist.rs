@@ -19,6 +19,7 @@ const STATUS_LONG_NAME: u8 = 0x40;
 const STATUS_REPEAT_MTIME: u8 = 0x80;
 
 /// Description of a single file (or directory or symlink etc).
+#[derive(Debug, PartialEq, Eq)]
 pub struct FileEntry {
     name: Vec<u8>,
 
@@ -53,6 +54,14 @@ impl FileEntry {
     /// if the remote end uses a different encoding the name may be mangled.
     pub fn name_lossy_string(&self) -> std::borrow::Cow<str> {
         String::from_utf8_lossy(&self.name)
+    }
+
+    pub fn is_file(&self) -> bool {
+        unix_mode::is_file(self.mode)
+    }
+
+    pub fn is_dir(&self) -> bool {
+        unix_mode::is_dir(self.mode)
     }
 }
 

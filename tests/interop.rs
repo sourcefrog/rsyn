@@ -34,7 +34,14 @@ fn list_files() {
     assert_eq!(names[2], "b");
     assert_eq!(names[3], "subdir");
     assert_eq!(names[4], "subdir/galah");
-    // TODO: Check file types.
+
+    // Check file types.
+    assert!(flist[0].is_dir());
+    assert!(!flist[0].is_file());
+    assert!(flist[1].is_file(), "expected {:?} would be a file", &flist[1]);
+    assert!(flist[2].is_file());
+    assert!(flist[3].is_dir());
+    assert!(flist[4].is_file());
 }
 
 #[cfg(unix)]

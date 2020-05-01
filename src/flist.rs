@@ -77,7 +77,8 @@ impl fmt::Display for FileEntry {
 
 pub type FileList = Vec<FileEntry>;
 
-pub fn read_file_list(r: &mut ReadVarint) -> io::Result<FileList> {
+/// Read a file list off the wire, and return it in sorted order.
+pub(crate) fn read_file_list(r: &mut ReadVarint) -> io::Result<FileList> {
     // TODO: Support receipt of uid and gid with -o, -g.
     // TODO: Support devices, links, etc.
 
@@ -140,6 +141,7 @@ pub fn read_file_list(r: &mut ReadVarint) -> io::Result<FileList> {
         });
     }
     debug!("end of file list");
+    v.sort_unstable_by(|a, b| a.name.cmp(&b.name));
     // TODO: Sort by strcmp.
     Ok(v)
 }

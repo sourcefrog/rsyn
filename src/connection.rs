@@ -93,6 +93,9 @@ impl Connection {
     }
 
     /// Return a list of files from the server.
+    ///
+    /// The file list is in the sorted order defined by the protocol, which
+    /// is strcmp on the raw bytes of the names.
     pub fn list_files(mut self) -> Result<FileList> {
         // send exclusion list length of 0
         self.send_exclusions()?;

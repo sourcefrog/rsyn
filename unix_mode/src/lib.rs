@@ -38,6 +38,16 @@ pub fn is_dir(mode: i32) -> bool {
     type_bits(mode) == 0o004
 }
 
+/// Returns true if this mode represents a symlink.
+///
+/// ```
+/// assert_eq!(unix_mode::is_symlink(0o0040755), false);
+/// assert_eq!(unix_mode::is_symlink(0o0120755), true);
+/// ```
+pub fn is_symlink(mode: i32) -> bool {
+    type_bits(mode) == 0o012
+}
+
 /// Convert Unix mode bits to a text string describing type and permissions,
 /// as shown in `ls`.
 ///

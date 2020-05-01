@@ -3,6 +3,7 @@
 use std::fs::{create_dir, File};
 
 use anyhow::Result;
+use chrono::prelude::*;
 use tempdir::TempDir;
 
 use rsyn::Connection;
@@ -42,6 +43,13 @@ fn list_files() {
     assert!(flist[2].is_file());
     assert!(flist[3].is_dir());
     assert!(flist[4].is_file());
+
+    // Check mtimes. We don't control them precisely, but they should be close
+    // to the current time. (Probably within a couple of seconds, but allow
+    // some slack for debugging, thrashing machines, etc.)
+    let now = Local::now();
+    assert!((now - flist[0].mtime()).num_minutes() < 5);
+    assert!((now - flist[1].mtime()).num_minutes() < 5);
 }
 
 /// Only on Unix, check we can list a directory containing a symlink, and see

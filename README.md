@@ -1,4 +1,4 @@
-# An wire-compatible rsync in Rust
+# Wire-compatible rsync client in Rust
 
 `rsyn` reimplements part of the rsync network protocol in pure Rust.
 (It's "rsync with no C.")

@@ -1,6 +1,6 @@
 //! Test this library's compatibility by running original Tridge rsync.
 
-use std::fs::File;
+use std::fs::{create_dir, File};
 
 use anyhow::Result;
 use tempdir::TempDir;
@@ -15,13 +15,15 @@ fn list_files() {
     let tmp = TempDir::new("rsyn_interop_list_files").unwrap();
     File::create(tmp.path().join("a")).unwrap();
     File::create(tmp.path().join("b")).unwrap();
+    create_dir(tmp.path().join("subdir")).unwrap();
+    File::create(tmp.path().join("subdir").join("galah")).unwrap();
 
     let flist = Connection::local_subprocess(tmp.path())
         .unwrap()
         .list_files()
         .unwrap();
 
-    assert_eq!(flist.len(), 3);
+    assert_eq!(flist.len(), 5);
     let names: Vec<String> = flist
         .iter()
         .map(|fe| fe.name_lossy_string().into_owned())
@@ -30,6 +32,8 @@ fn list_files() {
     assert_eq!(names[0], ".");
     assert_eq!(names[1], "a");
     assert_eq!(names[2], "b");
+    assert_eq!(names[3], "subdir");
+    assert_eq!(names[4], "subdir/galah");
     // TODO: Check file types.
 }
 

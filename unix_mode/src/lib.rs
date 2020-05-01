@@ -13,6 +13,31 @@
 //! This library isn't Unix-specific and doesn't depend on the underlying OS to
 //! interpret the bits.
 
+/// Return just the bits representing the type of file.
+fn type_bits(mode: i32) -> i32 {
+    (mode >> 12) & 0o17
+}
+
+/// Returns true if this mode represents a regular file.
+///
+/// ```
+/// assert_eq!(unix_mode::is_file(0o0041777), false);
+/// assert_eq!(unix_mode::is_file(0o0100640), true);
+/// ```
+pub fn is_file(mode: i32) -> bool {
+    type_bits(mode) == 0o010
+}
+
+/// Returns true if this mode represents a directory.
+///
+/// ```
+/// assert_eq!(unix_mode::is_dir(0o0041777), true);
+/// assert_eq!(unix_mode::is_dir(0o0100640), false);
+/// ```
+pub fn is_dir(mode: i32) -> bool {
+    type_bits(mode) == 0o004
+}
+
 /// Convert Unix mode bits to a text string describing type and permissions,
 /// as shown in `ls`.
 ///

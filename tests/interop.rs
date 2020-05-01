@@ -1,8 +1,37 @@
 //! Test this library's compatibility by running original Tridge rsync.
 
+use std::fs::File;
+
 use anyhow::Result;
+use tempdir::TempDir;
 
 use rsyn::Connection;
+
+/// List files from a newly-created temporary directory.
+#[test]
+fn list_files() {
+    install_test_logger();
+
+    let tmp = TempDir::new("rsyn_interop_list_files").unwrap();
+    File::create(tmp.path().join("a")).unwrap();
+    File::create(tmp.path().join("b")).unwrap();
+
+    let flist = Connection::local_subprocess(tmp.path())
+        .unwrap()
+        .list_files()
+        .unwrap();
+
+    assert_eq!(flist.len(), 3);
+    let names: Vec<String> = flist
+        .iter()
+        .map(|fe| fe.name_lossy_string().into_owned())
+        .collect();
+    // Names should already be sorted.
+    assert_eq!(names[0], ".");
+    assert_eq!(names[1], "a");
+    assert_eq!(names[2], "b");
+    // TODO: Check file types.
+}
 
 #[cfg(unix)]
 #[test]

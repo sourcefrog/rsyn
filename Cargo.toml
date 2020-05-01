@@ -17,3 +17,4 @@ unix_mode = { path = "unix_mode" }
 anyhow = "1.0.28"
 
 [dev-dependencies]
+tempdir = "0.3.7"

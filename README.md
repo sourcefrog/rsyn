@@ -5,11 +5,11 @@
 
 ## Install
 
-1. Install Rust (and Cargo) from <https://rustup.rs/> or elsewhere.
+1. Install Rust from <https://rustup.rs/> or elsewhere.
 
 2. In the rsyn source tree, run
 
-    cargo install --release
+       cargo install --release
 
 To run the interoperability tests (with `cargo test`) you'll need a copy
 of rsync installed.

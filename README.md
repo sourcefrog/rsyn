@@ -81,9 +81,9 @@ can do better.
 * rsyn will offer a clean public library Rust API through which transfers can be
   initiated and observed in-process. As is usual
 
-* Every command line option in rsyn should have the same meaning as in rsync. 
+* Every command line option in rsyn should have the same meaning as in rsync.
 
-  It's OK if some of the many rsync options are not supported. 
+  It's OK if some of the many rsync options are not supported.
 
   The exception is that rsyn-specific options will start with `--Z` to
   distinguish them and avoid collisions.
@@ -120,9 +120,9 @@ can do better.
 
 ### Non-goals
 
-* rsyn will not necessarily support every single option and feature in rsync. 
+* rsyn will not necessarily support every single option and feature in rsync.
 
-  rsync has a lot of options, which (at least in the rsync codebase) interact in 
+  rsync has a lot of options, which (at least in the rsync codebase) interact in
   complicated ways. Some seem to have niche audiences, or to be obsolete, such
   as special support for `rsh` or HP-UX `remsh`.
 
@@ -155,6 +155,15 @@ generous mentorship and contributions to open source.
 This project would have been far harder without Kristaps Dzonsons's
 documentation of the rsync protocol in the
 [openrsync](https://github.com/kristapsdz/openrsync) project.
+
+## License
+
+[Apache 2.0](LICENSE).
+
+## Contributing
+
+I'd love to accept patches to this project. Please read the [contribution
+guidelines](doc/contributing.md) and [code of conduct](doc/code-of-conduct.md).
 
 ## Disclaimer
 

@@ -44,6 +44,30 @@ fn list_files() {
     assert!(flist[4].is_file());
 }
 
+/// Only on Unix, check we can list a directory containing a symlink, and see
+/// the symlink.
+#[cfg(unix)]
+#[test]
+fn list_symlink() -> rsyn::Result<()> {
+    install_test_logger();
+
+    let tmp = TempDir::new("rsyn_interop_list_symlink")?;
+    std::os::unix::fs::symlink(
+        "dangling link", tmp.path().join("a link"))?;
+
+    let flist = Connection::local_subprocess(tmp.path())?
+        .list_files()?;
+
+    assert_eq!(flist.len(), 2);
+    assert_eq!(flist[0].name_lossy_string(), ".");
+    assert_eq!(flist[1].name_lossy_string(), "a link");
+
+    assert!(!flist[0].is_symlink());
+    assert!(flist[1].is_symlink());
+
+    Ok(())
+}
+
 #[cfg(unix)]
 #[test]
 /// Only on Unix: list `/etc`, a good natural source of files with different

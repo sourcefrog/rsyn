@@ -38,7 +38,7 @@ impl FileEntry {
         Local.timestamp(self.mtime as i64, 0)
     }
 
-    /// Return the file name, as a byte string, in the (remote) OS's encoding.
+    /// Returns the file name, as a byte string, in the (remote) OS's encoding.
     ///
     /// rsync doesn't constrain the encoding, so this will typically, but not
     /// necessarily be UTF-8.
@@ -47,21 +47,31 @@ impl FileEntry {
         &self.name
     }
 
-    /// Return the name, with un-decodable bytes converted to Unicode
+    /// Returns the file name, with un-decodable bytes converted to Unicode
     /// replacement characters.
     ///
     /// For the common case of UTF-8 names, this is simply the name, but
     /// if the remote end uses a different encoding the name may be mangled.
+    ///
+    /// This is suitable for printing, but might not be suitable for use as a
+    /// destination file name.
     pub fn name_lossy_string(&self) -> std::borrow::Cow<str> {
         String::from_utf8_lossy(&self.name)
     }
 
+    /// Returns true if this entry describes a plain file.
     pub fn is_file(&self) -> bool {
         unix_mode::is_file(self.mode)
     }
 
+    /// Returns true if this entry describes a directory.
     pub fn is_dir(&self) -> bool {
         unix_mode::is_dir(self.mode)
+    }
+
+    /// Returns true if this entry describes a symlink.
+    pub fn is_symlink(&self) -> bool {
+        unix_mode::is_symlink(self.mode)
     }
 }
 

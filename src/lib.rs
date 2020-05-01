@@ -9,7 +9,7 @@
 //!
 //! // We can see the `lib.rs` in the listing.
 //! assert!(flist.iter().any(|fe|
-//!     String::from_utf8_lossy(&fe.name).ends_with("lib.rs")));
+//!     fe.name_lossy_string().ends_with("lib.rs")));
 //! ```
 
 mod connection;

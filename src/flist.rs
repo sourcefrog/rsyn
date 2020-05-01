@@ -20,13 +20,7 @@ const STATUS_REPEAT_MTIME: u8 = 0x80;
 
 /// Description of a single file (or directory or symlink etc).
 pub struct FileEntry {
-    /// File name, as a byte string, in the (remote) OS's encoding.
-    ///
-    /// rsync doesn't constrain the encoding, so this will typically but not
-    /// necessarily be UTF-8.
-    // TODO: Perhaps this should be an OSString, but it's not necessarily in the
-    // *local* OS's format.
-    pub name: Vec<u8>,
+    name: Vec<u8>,
 
     /// Length of the file, in bytes.
     pub file_len: i64,
@@ -41,6 +35,24 @@ pub struct FileEntry {
 impl FileEntry {
     pub fn mtime_timestamp(&self) -> chrono::DateTime<Local> {
         Local.timestamp(self.mtime as i64, 0)
+    }
+
+    /// Return the file name, as a byte string, in the (remote) OS's encoding.
+    ///
+    /// rsync doesn't constrain the encoding, so this will typically, but not
+    /// necessarily be UTF-8.
+    // TODO: Also offer it as an OSString?
+    pub fn name_bytes(&self) -> &[u8] {
+        &self.name
+    }
+
+    /// Return the name, with un-decodable bytes converted to Unicode
+    /// replacement characters.
+    ///
+    /// For the common case of UTF-8 names, this is simply the name, but
+    /// if the remote end uses a different encoding the name may be mangled.
+    pub fn name_lossy_string(&self) -> std::borrow::Cow<str> {
+        String::from_utf8_lossy(&self.name)
     }
 }
 
@@ -58,7 +70,7 @@ impl fmt::Display for FileEntry {
             unix_mode::to_string(self.mode),
             self.file_len,
             self.mtime_timestamp().format("%Y-%m-%d %H:%M:%S"),
-            String::from_utf8_lossy(&self.name)
+            self.name_lossy_string(),
         )
     }
 }

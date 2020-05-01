@@ -27,7 +27,7 @@ pub struct FileEntry {
     pub file_len: i64,
 
     /// Unix mode, containing the file type and permissions.
-    pub mode: i32,
+    pub mode: u32,
 
     /// Modification time, in seconds since the Unix epoch.
     pub mtime: i32,
@@ -146,7 +146,7 @@ pub(crate) fn read_file_list(r: &mut ReadVarint) -> io::Result<FileList> {
         debug!("  mtime: {}", mtime);
 
         let mode = if status & STATUS_REPEAT_MODE == 0 {
-            r.read_i32()?
+            r.read_i32()? as u32
         } else {
             v.last().unwrap().mode
         };

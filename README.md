@@ -3,44 +3,53 @@
 `rsyn` reimplements part of the rsync network protocol in pure Rust.
 (It's "rsync with no C.")
 
-This project is copyright by Google, but is not an official Google project.
+## Install
 
-## Status
+1. Install Rust (and Cargo) from <https://rustup.rs/> or elsewhere.
+
+2. In the rsyn source tree, run
+
+    cargo install --release
+
+To run the interoperability tests (with `cargo test`) you'll need a copy
+of rsync installed.
+
+## Usage
 
 `rsyn DIR` prints a recursive listing of the given local directory, by launching
 a local rsync subprocess and controlling it over a pair of pipes. (This doesn't
-have much external utility but it's a milestone towards implementing the
+have much external utility, but it demonstrates progress towards implementing the
 protocol correctly.)
-
-Tested on macOS and Linux, but not yet on Windows.
 
 ## Roadmap
 
 Intended next steps are:
 
-1. List a directory over rsync+ssh.
+- [x] List a local directory from a local subprocess.
 
-1. Copy a directory from rsync into an empty local directory.
+- [ ] List a directory over `rsync+ssh`.
 
-1. Copy a directory from rsync into a local directory, skipping already
-   up-to-date files, but downloading the full content of missing or out-of-date
-   files.
+- [ ] Copy a directory from rsync into an empty local directory.
 
-1. Connect to an rsync daemon (`rsync://`): these talk a different introductory
-   protocol before starting the main rsync protocol. Support downloads with the
-   limitations above.
+- [ ] Copy a directory from rsync into a local directory, skipping already
+  up-to-date files, but downloading the full content of missing or out-of-date
+  files.
 
-1. Support incremental rolling-sum and checksum file transfers: the actual
-   "rsync algorithm".
+- [ ] Connect to an rsync daemon (`rsync://`): these talk a different introductory
+  protocol before starting the main rsync protocol. Support downloads with the
+  limitations above.
+
+- [ ] Support incremental rolling-sum and checksum file transfers: the actual
+  "rsync algorithm".
 
 Below this point the ordering is less certain but some options are:
 
-1. Act as a server for rsync+ssh. In particular, use this to test rsyn against
-   itself, as well as against rsync.
+- [ ] Act as a server for rsync+ssh. In particular, use this to test rsyn against
+  itself, as well as against rsync.
 
-1. Act as an `rsync://` daemon.
+- [ ] Act as an `rsync://` daemon.
 
-1. Support some more selected command line options.
+- [ ] Support some more selected command line options.
 
 ## Why do this?
 
@@ -56,75 +65,87 @@ control flow, including how structures are encoded and decoded.
 rsync is still fairly widely deployed, and does a good job. A safer
 interoperable implementation could be useful.
 
-And, personally: I contributed to rsync 20 years ago, and it's interesting
+And, personally: I contributed to rsync many years ago, and it's interesting
 to revisit the space with better tools, and with more experience, and see if I
 can do better.
 
-## Install
-
-1. Install Rust (and Cargo) from <https://rustup.rs/> or elsewhere.
-
-2. In the rsyn source tree, run
-
-    cargo install --release
-
-To run the interoperability tests (with `cargo test`) you'll need a copy
-of rsync installed.
-
 ## Goals
 
-* Interoperability with original "tridge" rsync, over (first) `rsync+ssh://` or
-  (later) `rsync://`.
+* rsyn will interoperate with recent versions of upstream "tridge" rsync, over
+  (first) `rsync+ssh://` or (later) `rsync://`.
 
-* Support commonly-used options. Most importantly: transfer files recursively,
-  with mtimes and permissions, with some exclusions.
+* rsyn will support commonly-used rsync options and scenarios. The most
+  important are to transfer files recursively, with mtimes and permissions, with
+  exclusion patterns.
 
-* A clean public Rust API through which transfers can be initiated and observed
-  in-process.
+* rsyn will offer a clean public library Rust API through which transfers can be
+  initiated and observed in-process. As is usual
 
-* Command line compatibility: `rsyn -WTFBBQ` should mean the same as in rsync,
-  (if those options are supported at all). rsyn-specific options can be behind
-  a `-Z` prefix, which is unused by rsync.
+* Every command line option in rsyn should have the same meaning as in rsync. 
 
-* Demonstrate interoperability by automatically testing rsyn against rsync.
-  (Later: against various versions of rsync and maybe also openrsync.)
+  It's OK if some of the many rsync options are not supported. 
 
-* No `unsafe` blocks or C FFI. (In the tool itself: the underlying
-  Rust libraries have some trusted implementation code and link in some C code.)
+  The exception is that rsyn-specific options will start with `--Z` to
+  distinguish them and avoid collisions.
 
-* Run on Linux, macOS, Windows, and other Unixes.
-  (Use Rust concurrency structures that are supported everywhere, rather than
-  rsync's creative application of Unix-isms.)
+* rsyn's test suite should demonstrate interoperability by automatically testing
+  rsyn against rsync.  (Later versions might demonstrate compatibility against
+  various different versions of rsync, and maybe also against openrsync.)
 
-* Be safe even against an arbitrarily malicious peer.
+* rsyn should have no `unsafe` blocks. (The underlying Rust libraries have some
+  trusted implementation code and link in some C code.)
 
-* Comparable performance to rsync, in terms of throughput, CPU, and memory.
+* rsyn will run on Linux, macOS, Windows, and other Unixes, in both 64-bit and
+  (if the OS supports it) 32-bit mode.
 
-* Good test coverage, both unit tests and interoperability tests.
+  rsyn will use Rust concurrency structures that are supported everywhere,
+  rather than rsync's creative application of Unix-isms such as sockets shared
+  between multiple processes.
 
-* Work correctly on either 32 or 64-bit platforms.
+* rsyn should be safe even against an arbitrarily malicious peer.
 
-* Clean code. Use Rust type checking to prevent illegal or unsafe states.
-  Aim to have different options factored out into types that compose together.
+  In particular, paths received from the peer should be carefully validated
+  to prevent [path traversal
+  bugs](https://cwe.mitre.org/data/definitions/1219.html).
 
-Non-goals:
+* rsyn should show comparable performance to rsync, in terms of throughput, CPU,
+  and memory.
 
-* Necessarily support every single option and feature in rsync. It's grown a
-  lot of options over time, which interact with each other and complicate the
-  protocol and implementation quite a lot.
+* rsyn should have good test coverage: both unit tests and interoperability tests.
 
-* Improve or evolve the protocol. It's already weird and complicated, and was
-  built for a different environment than exists today. Dramatically new
-  features, in my view, are better off in a different protocol.
+* rsyn code should be clean and understandable Rust code. (The rsync code is now
+  quite convoluted.) rsyn will use Rust type checking to prevent illegal or
+  unsafe states.  Interacting options should be factored into composed types,
+  rather than forests of `if` statements.
 
-* Support `rsh` or `remsh`! (In theory they can drop in for ssh, but rsync has a
-  surprising amount of special case code for things that now seem from a
-  different world.)
+### Non-goals
 
-* Exactly identical internal behavior, for example in how things are encoded on
-  the wire, or what order files are processed.
+* rsyn will not necessarily support every single option and feature in rsync. 
 
-* Identical text/log output.
+  rsync has a lot of options, which (at least in the rsync codebase) interact in 
+  complicated ways. Some seem to have niche audiences, or to be obsolete, such
+  as special support for `rsh` or HP-UX `remsh`.
+
+* rsyn speaks the protocol defined by rsync's implementation, and does not
+  aspire to evolve the protocol or to add rsyn-specific upgrades.
+
+  rsync's protocol is already fairly weird and complicated, and was built for a
+  different environment than exists today. Dramatically new features, in my
+  view, are better off in a clean-slate protocol.
+
+* rsyn need not address security weaknesses in the rsync protocol.
+
+  rsync's block-hashing, file-hashing, and daemon mode authentication use MD4,
+  which is not advisable today. This can't be unilaterally changed by rsyn while
+  keeping compatibility.
+
+  For sensitive data or writable directories, I'd strongly recommend running
+  rsync over SSH than relying on its own authentication mechanism.
+
+* rsyn need not behave exactly identically to rsync in, for example, the order
+  files are processed or how the wire protocol is used.
+
+* rsyn need not generate exactly identical text/log output.
 
 ## Acknowledgements
 
@@ -134,4 +155,10 @@ generous mentorship and contributions to open source.
 This project would have been far harder without Kristaps Dzonsons's
 documentation of the rsync protocol in the
 [openrsync](https://github.com/kristapsdz/openrsync) project.
+
+## Disclaimer
+
+This is not an official Google project.  It is not supported by Google, and
+Google specifically disclaims all warranties as to its quality, merchantability,
+or fitness for a particular purpose.
 

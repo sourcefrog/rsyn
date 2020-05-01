@@ -163,7 +163,7 @@ documentation of the rsync protocol in the
 ## Contributing
 
 I'd love to accept patches to this project. Please read the [contribution
-guidelines](doc/contributing.md) and [code of conduct](doc/code-of-conduct.md).
+guidelines](CONTRIBUTING.md) and [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Disclaimer
 

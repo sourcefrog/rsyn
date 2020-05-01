@@ -39,7 +39,11 @@ fn list_files() {
     // Check file types.
     assert!(flist[0].is_dir());
     assert!(!flist[0].is_file());
-    assert!(flist[1].is_file(), "expected {:?} would be a file", &flist[1]);
+    assert!(
+        flist[1].is_file(),
+        "expected {:?} would be a file",
+        &flist[1]
+    );
     assert!(flist[2].is_file());
     assert!(flist[3].is_dir());
     assert!(flist[4].is_file());
@@ -60,11 +64,9 @@ fn list_symlink() -> rsyn::Result<()> {
     install_test_logger();
 
     let tmp = TempDir::new("rsyn_interop_list_symlink")?;
-    std::os::unix::fs::symlink(
-        "dangling link", tmp.path().join("a link"))?;
+    std::os::unix::fs::symlink("dangling link", tmp.path().join("a link"))?;
 
-    let flist = Connection::local_subprocess(tmp.path())?
-        .list_files()?;
+    let flist = Connection::local_subprocess(tmp.path())?.list_files()?;
 
     assert_eq!(flist.len(), 2);
     assert_eq!(flist[0].name_lossy_string(), ".");
@@ -76,20 +78,20 @@ fn list_symlink() -> rsyn::Result<()> {
     Ok(())
 }
 
-#[cfg(unix)]
-#[test]
 /// Only on Unix: list `/etc`, a good natural source of files with different
 /// permissions, including some probably not readable to the non-root
 /// user running this test.
+#[cfg(unix)]
+#[test]
 fn list_files_etc() -> Result<()> {
     install_test_logger();
     let _flist = Connection::local_subprocess("/etc")?.list_files()?;
     Ok(())
 }
 
+/// Only on Unix: list `/dev`, a good source of devices and unusual files.
 #[cfg(unix)]
 #[test]
-/// Only on Unix: list `/dev`, a good source of devices and unusual files.
 fn list_files_dev() -> Result<()> {
     install_test_logger();
     let _flist = Connection::local_subprocess("/dev")?.list_files()?;

@@ -134,7 +134,11 @@ impl Address {
         if options.recursive {
             push_str("-r")
         }
-        v.push(self.path.clone());
+        if self.path.is_empty() {
+            push_str(".")
+        } else {
+            v.push(self.path.clone())
+        }
         Ok(v)
     }
 
@@ -439,6 +443,32 @@ mod test {
                 "--list-only",
                 "-r",
                 "/home/mbp"
+            ],
+        );
+    }
+
+    /// SSH with no path should say '.', typically to look in the home
+    /// directory.
+    #[test]
+    fn build_ssh_args_for_default_directory() {
+        let address: Address = "example-host:".parse().unwrap();
+        let args = address
+            .build_args(&Options {
+                list_only: true,
+                ..Options::default()
+            })
+            .unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "ssh",
+                "example-host",
+                "rsync",
+                "--server",
+                "--sender",
+                "-vv",
+                "--list-only",
+                "."
             ],
         );
     }

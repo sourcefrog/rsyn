@@ -14,8 +14,6 @@
 
 //! Command-line program for rsyn, an rsync client in Rust.
 
-use std::path::PathBuf;
-
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use structopt::StructOpt;
@@ -29,7 +27,7 @@ use rsyn::{Address, Options, Result};
 /// With one PATH argument, lists the contents of that directory.
 struct Opt {
     /// Directory to list.
-    path: PathBuf,
+    path: String,
 
     /// Turn on verbose debugging output.
     // TODO: Perhaps take an optarg controlling filtering per module?
@@ -54,8 +52,7 @@ fn main() -> Result<()> {
         .expect("Failed to configure logger");
 
     // let address = Address::ssh(None, "localhost", opt.path.to_str().unwrap());
-    let address = Address::local(&opt.path);
-
+    let address: Address = opt.path.parse().expect("Failed to parse path");
     let (file_list, _stats) = address.connect(Options::default())?.list_files()?;
     for entry in file_list {
         println!("{}", &entry)

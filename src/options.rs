@@ -17,5 +17,5 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct Options {}

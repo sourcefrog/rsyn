@@ -19,8 +19,11 @@
 use std::ffi::OsString;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::str::FromStr;
 
 use anyhow::Context;
+use lazy_static::lazy_static;
+use regex::Regex;
 
 use crate::{Connection, Options, Result};
 
@@ -39,7 +42,7 @@ const RSYNC_COMMAND: &str = "rsync";
 /// ```
 /// let address = rsyn::Address::local("./src");
 /// ```
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Address {
     /// Root path to pass to the server.
     path: OsString,
@@ -49,7 +52,7 @@ pub struct Address {
 }
 
 /// Describes how to start an SSH subprocess.
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 struct Ssh {
     user: Option<String>,
     host: String,
@@ -129,12 +132,140 @@ impl Address {
     }
 }
 
+#[derive(Debug)]
+pub struct ParseAddressError {}
+
+/// Builds an Address by matching the URL and SFTP-like formats used by
+/// rsync.
+impl FromStr for Address {
+    type Err = ParseAddressError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        lazy_static! {
+            static ref SFTP_RE: Regex = Regex::new(
+                r"^(?x)
+                    ((?P<user>[^@:]+)@)?
+                    (?P<host>[^:@]+):
+                    (?P<colon>:)?  # maybe a second colon, to indicate --daemon
+                    (?P<path>.*)   # path; may be absolute or relative
+                    $",
+            )
+            .unwrap();
+            static ref URL_RE: Regex = Regex::new(
+                r"^(?x)
+                    rsync://
+                    ((?P<user>[^@:]+)@)?
+                    (?P<host>[^:/]+)
+                    (:(?P<port>\d+))?
+                    /
+                    (?P<path>.*)
+                    $",
+            )
+            .unwrap();
+        }
+        if let Some(_caps) = URL_RE.captures(s) {
+            todo!("rsync daemon not implemented yet");
+        } else if let Some(caps) = SFTP_RE.captures(s) {
+            if caps.name("colon").is_some() {
+                todo!("rsync daemon not implemented yet");
+            }
+            Ok(Address {
+                path: caps["path"].into(),
+                ssh: Some(Ssh {
+                    user: caps.name("user").map(|m| m.as_str().to_string()),
+                    host: caps["host"].into(),
+                }),
+            })
+        } else {
+            // Assume it's just a path.
+            Ok(Address {
+                path: s.into(),
+                ssh: None,
+            })
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
-    // Actually running SSH is a bit hard to test hermetically, but let's
-    // at least check the command lines are plausible.
+    #[test]
+    fn parse_sftp_style_without_user() {
+        let address = Address::from_str("bilbo:/home/www").unwrap();
+        assert_eq!(
+            address,
+            Address {
+                ssh: Some(Ssh {
+                    user: None,
+                    host: "bilbo".into(),
+                }),
+                path: "/home/www".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn parse_sftp_style_with_user() {
+        let address = Address::from_str("mbp@bilbo:/home/www").unwrap();
+        assert_eq!(
+            address,
+            Address {
+                ssh: Some(Ssh {
+                    user: Some("mbp".to_string()),
+                    host: "bilbo".to_string(),
+                }),
+                path: "/home/www".into(),
+            }
+        );
+    }
+
+    // Should panic because unimplemented but recognized.
+    #[test]
+    #[should_panic]
+    fn parse_daemon_simple() {
+        Address::from_str("rsync.samba.org::foo").unwrap();
+    }
+
+    // Should panic because unimplemented but recognized.
+    #[test]
+    #[should_panic]
+    fn parse_daemon_with_user() {
+        Address::from_str("rsync@rsync.samba.org::meat/bread/wine").unwrap();
+    }
+
+    // Should panic because unimplemented but recognized.
+    #[test]
+    #[should_panic]
+    fn parse_rsync_url() {
+        Address::from_str("rsync://rsync.samba.org/foo").unwrap();
+    }
+
+    // Should panic because unimplemented but recognized.
+    #[test]
+    #[should_panic]
+    fn parse_rsync_url_with_username() {
+        Address::from_str("rsync://anon@rsync.samba.org/foo").unwrap();
+    }
+
+    // Should panic because unimplemented but recognized.
+    #[test]
+    #[should_panic]
+    fn parse_rsync_url_with_username_and_port() {
+        Address::from_str("rsync://anon@rsync.samba.org:8370/alpha/beta/gamma").unwrap();
+    }
+
+    #[test]
+    fn parse_simple_path() {
+        let address = Address::from_str("/usr/local/foo").unwrap();
+        assert_eq!(
+            address,
+            Address {
+                ssh: None,
+                path: "/usr/local/foo".into(),
+            }
+        );
+    }
 
     #[test]
     fn build_local_args() {
@@ -144,6 +275,9 @@ mod test {
 
     #[test]
     fn build_ssh_args() {
+        // Actually running SSH is a bit hard to test hermetically, but let's
+        // at least check the command lines are plausible.
+
         let args = Address::ssh(None, "samba.org", "/home/mbp")
             .build_args()
             .unwrap();

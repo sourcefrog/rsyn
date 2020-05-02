@@ -18,12 +18,13 @@
 //!
 //! ```
 //! // Open a connection to a local rsync server, and list the source directory.
-//! let (flist, _stats) = rsyn::Connection::local_subprocess("./src").unwrap()
-//!     .list_files().unwrap();
+//! let (flist, _stats) = rsyn::Connection::local_subprocess("./src")?
+//!     .list_files()?;
 //!
 //! // We can see the `lib.rs` in the listing.
 //! assert!(flist.iter().any(|fe|
 //!     fe.name_lossy_string().ends_with("lib.rs")));
+//! # rsyn::Result::Ok(())
 //! ```
 
 mod connection;

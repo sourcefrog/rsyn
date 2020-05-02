@@ -23,8 +23,8 @@ use chrono::{Local, TimeZone};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::Result;
 use crate::varint::ReadVarint;
+use crate::Result;
 
 // const STATUS_TOP_LEVEL_DIR: u8 = 0x01;
 const STATUS_REPEAT_MODE: u8 = 0x02;
@@ -35,6 +35,9 @@ const STATUS_LONG_NAME: u8 = 0x40;
 const STATUS_REPEAT_MTIME: u8 = 0x80;
 
 /// Description of a single file (or directory or symlink etc).
+///
+/// The `Display` trait formats an entry like in `ls -l`, and like in rsync
+/// directory listings.
 #[derive(Debug, PartialEq, Eq)]
 pub struct FileEntry {
     name: Vec<u8>,
@@ -98,12 +101,13 @@ impl FileEntry {
     }
 }
 
-/// Display this entry in a format like that of `ls` and like `rsync` uses in
+/// Display this entry in a format like that of `ls`, and like `rsync` uses in
 /// listing directories:
 ///
 /// ```text
-/// lrwxr-xr-x          11 2020/02/28 07:33:44 etc
+/// drwxr-x---         420 2020-05-02 07:25:17 rsyn
 /// ```
+///
 impl fmt::Display for FileEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -158,7 +162,9 @@ pub(crate) fn read_file_list(r: &mut ReadVarint) -> Result<FileList> {
         debug!("  filename: {:?}", String::from_utf8_lossy(&name));
         assert!(!name.is_empty());
 
-        let file_len: u64 = r.read_i64()?.try_into()
+        let file_len: u64 = r
+            .read_i64()?
+            .try_into()
             .context("Received negative file_len")?;
         debug!("  file_len: {}", file_len);
 
@@ -187,4 +193,23 @@ pub(crate) fn read_file_list(r: &mut ReadVarint) -> Result<FileList> {
     v.sort_unstable_by(|a, b| a.name.cmp(&b.name));
     // TODO: Sort by strcmp.
     Ok(v)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn file_entry_display_like_ls() {
+        let entry = FileEntry {
+            mode: 0o0040750,
+            file_len: 420,
+            mtime: 1588429517,
+            name: b"rsyn".to_vec(),
+        };
+        assert_eq!(
+            format!("{}", entry),
+            "drwxr-x---         420 2020-05-02 07:25:17 rsyn"
+        );
+    }
 }

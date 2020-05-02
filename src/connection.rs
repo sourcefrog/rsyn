@@ -26,6 +26,7 @@ use anyhow::{bail, Context, Result};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use crate::ServerStatistics;
 use crate::flist::{read_file_list, FileList};
 use crate::mux::DemuxRead;
 use crate::varint::{ReadVarint, WriteVarint};
@@ -106,11 +107,11 @@ impl Connection {
         })
     }
 
-    /// Return a list of files from the server.
+    /// Lists files in the target directory on the server.
     ///
     /// The file list is in the sorted order defined by the protocol, which
     /// is strcmp on the raw bytes of the names.
-    pub fn list_files(mut self) -> Result<FileList> {
+    pub fn list_files(mut self) -> Result<(FileList, ServerStatistics)> {
         // send exclusion list length of 0
         self.send_exclusions()?;
         let file_list = read_file_list(&mut self.rv)?;
@@ -133,15 +134,14 @@ impl Connection {
         assert_eq!(self.rv.read_i32()?, -1);
         self.wv.write_i32(-1)?; // end-of-sequence marker
         assert_eq!(self.rv.read_i32()?, -1);
-        // TODO: Return the statistics.
-        let server_stats = crate::statistics::ServerStatistics::read(&mut self.rv)
+        let server_stats = ServerStatistics::read(&mut self.rv)
             .context("Failed to read server statistics")?;
         info!("server statistics: {:#?}", server_stats);
 
         // one more end?
         self.wv.write_i32(-1)?;
         self.shutdown()?;
-        Ok(file_list)
+        Ok((file_list, server_stats))
     }
 
     /// Shut down this connection, consuming the object.

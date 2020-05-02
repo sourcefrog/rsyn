@@ -55,7 +55,7 @@ fn main() -> Result<()> {
         .apply()
         .expect("Failed to configure logger");
 
-    let file_list = Connection::local_subprocess(&opt.path)?.list_files()?;
+    let (file_list, _stats) = Connection::local_subprocess(&opt.path)?.list_files()?;
     for entry in file_list {
         println!("{}", &entry)
     }

@@ -18,7 +18,7 @@
 //!
 //! ```
 //! // Open a connection to a local rsync server, and list the source directory.
-//! let flist = rsyn::Connection::local_subprocess("./src").unwrap()
+//! let (flist, _stats) = rsyn::Connection::local_subprocess("./src").unwrap()
 //!     .list_files().unwrap();
 //!
 //! // We can see the `lib.rs` in the listing.

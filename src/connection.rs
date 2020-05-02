@@ -115,12 +115,20 @@ impl Connection {
             .read_i32()
             .context("Failed to read server error count")?;
         if io_error_count > 0 {
-            warn!("server reports {} IO errors", io_error_count);
+            warn!("Server reports {} IO errors", io_error_count);
         }
 
         // Request no files.
         debug!("send end of phase 1");
         self.wv.write_i32(-1)?; // end of phase 1
+
+        // Server stops here if there were no files.
+        if file_list.is_empty() {
+            info!("Server returned no files, so we're done");
+            self.shutdown()?;
+            return Ok((file_list, ServerStatistics::default()));
+        }
+
         assert_eq!(self.rv.read_i32()?, -1);
         debug!("send end of phase 2");
         self.wv.write_i32(-1)?; // end of phase 2

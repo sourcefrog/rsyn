@@ -114,7 +114,7 @@ impl Address {
 
     /// Builds the arguments to start a connection subcommand, including the
     /// command name.
-    fn build_args(&self) -> Result<Vec<OsString>> {
+    fn build_args(&self, options: &Options) -> Result<Vec<OsString>> {
         let mut v = Vec::<OsString>::new();
         let mut push_str = |s: &str| v.push(s.into());
         if let Some(ref ssh) = self.ssh {
@@ -130,7 +130,13 @@ impl Address {
         };
         push_str("--server");
         push_str("--sender");
-        push_str("-vvr");
+        push_str("-vv");
+        if options.list_only {
+            push_str("--list-only")
+        }
+        if options.recursive {
+            push_str("-r")
+        }
         v.push(self.path.clone());
         Ok(v)
     }
@@ -143,7 +149,7 @@ impl Address {
         if self.daemon.is_some() {
             todo!("daemon mode is not implemented yet");
         }
-        let mut args = self.build_args()?;
+        let mut args = self.build_args(&options)?;
         let mut command = Command::new(args.remove(0));
         command.args(args);
         command.stdin(Stdio::piped());
@@ -369,8 +375,16 @@ mod test {
 
     #[test]
     fn build_local_args() {
-        let args = Address::local("./src").build_args().unwrap();
-        assert_eq!(args, vec!["rsync", "--server", "--sender", "-vvr", "./src"],);
+        let args = Address::local("./src")
+            .build_args(&Options {
+                recursive: true,
+                ..Options::default()
+            })
+            .unwrap();
+        assert_eq!(
+            args,
+            vec!["rsync", "--server", "--sender", "-vv", "-r", "./src"],
+        );
     }
 
     #[test]
@@ -379,7 +393,7 @@ mod test {
         // at least check the command lines are plausible.
 
         let args = Address::ssh(None, "samba.org", "/home/mbp")
-            .build_args()
+            .build_args(&Options::default())
             .unwrap();
         assert_eq!(
             args,
@@ -389,7 +403,7 @@ mod test {
                 "rsync",
                 "--server",
                 "--sender",
-                "-vvr",
+                "-vv",
                 "/home/mbp"
             ],
         );
@@ -398,7 +412,10 @@ mod test {
     #[test]
     fn build_ssh_args_with_user() {
         let args = Address::ssh(Some("mbp"), "samba.org", "/home/mbp")
-            .build_args()
+            .build_args(&Options {
+                recursive: true,
+                list_only: true,
+            })
             .unwrap();
         assert_eq!(
             args,
@@ -410,7 +427,9 @@ mod test {
                 "rsync",
                 "--server",
                 "--sender",
-                "-vvr",
+                "-vv",
+                "--list-only",
+                "-r",
                 "/home/mbp"
             ],
         );

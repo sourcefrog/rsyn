@@ -20,7 +20,12 @@
 //! use rsyn::{Address, Options};
 //! let address = Address::local("./src");
 //! // Open a connection to a local rsync server, and list the source directory.
-//! let (flist, _stats) = address.connect(Options::default())?
+//! let options = Options {
+//!     list_only: true,
+//!     recursive: true,
+//!     ..Options::default()
+//! };
+//! let (flist, _stats) = address.connect(options)?
 //!     .list_files()?;
 //!
 //! // We can see the `lib.rs` in the listing.

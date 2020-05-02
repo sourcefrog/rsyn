@@ -34,7 +34,10 @@ fn list_files() {
     File::create(tmp.path().join("subdir").join("galah")).unwrap();
 
     let (flist, stats) = Address::local(tmp.path())
-        .connect(Options::default())
+        .connect(Options {
+            recursive: true,
+            list_only: true,
+        })
         .unwrap()
         .list_files()
         .unwrap();
@@ -84,9 +87,11 @@ fn list_symlink() -> rsyn::Result<()> {
     let tmp = TempDir::new("rsyn_interop_list_symlink")?;
     std::os::unix::fs::symlink("dangling link", tmp.path().join("a link"))?;
 
-    let (flist, _stats) = Address::local(tmp.path())
-        .connect(Options::default())?
-        .list_files()?;
+    let options = Options {
+        list_only: true,
+        recursive: false,
+    };
+    let (flist, _stats) = Address::local(tmp.path()).connect(options)?.list_files()?;
 
     assert_eq!(flist.len(), 2);
     assert_eq!(flist[0].name_lossy_string(), ".");
@@ -106,7 +111,10 @@ fn list_symlink() -> rsyn::Result<()> {
 fn list_files_etc() -> Result<()> {
     install_test_logger();
     let (_flist, _stats) = Address::local("/etc")
-        .connect(Options::default())?
+        .connect(Options {
+            recursive: true,
+            list_only: true,
+        })?
         .list_files()?;
     Ok(())
 }
@@ -117,7 +125,10 @@ fn list_files_etc() -> Result<()> {
 fn list_files_dev() -> Result<()> {
     install_test_logger();
     let (_flist, _stats) = Address::local("/dev")
-        .connect(Options::default())?
+        .connect(Options {
+            recursive: true,
+            list_only: true,
+        })?
         .list_files()?;
     Ok(())
 }

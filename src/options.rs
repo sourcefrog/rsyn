@@ -18,4 +18,13 @@
 use log::{debug, error, info, trace, warn};
 
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
-pub struct Options {}
+pub struct Options {
+    /// Recurse into directories.
+    pub recursive: bool,
+
+    /// Only list files.
+    ///
+    /// This must be specified to cause the server to list files when not
+    /// given `-r`.
+    pub list_only: bool,
+}

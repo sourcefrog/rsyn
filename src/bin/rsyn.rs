@@ -33,6 +33,24 @@ struct Opt {
     // TODO: Perhaps take an optarg controlling filtering per module?
     #[structopt(long)]
     debug: bool,
+
+    /// Recurse into directories.
+    #[structopt(long, short = "r")]
+    recursive: bool,
+
+    /// List files, don't copy them.
+    #[structopt(long)]
+    list_only: bool,
+}
+
+impl Opt {
+    /// Convert command-line options to protocol options.
+    fn to_options(&self) -> Options {
+        Options {
+            recursive: self.recursive,
+            list_only: self.list_only,
+        }
+    }
 }
 
 fn main() -> Result<()> {
@@ -51,9 +69,12 @@ fn main() -> Result<()> {
         .apply()
         .expect("Failed to configure logger");
 
-    // let address = Address::ssh(None, "localhost", opt.path.to_str().unwrap());
     let address: Address = opt.path.parse().expect("Failed to parse path");
-    let (file_list, _stats) = address.connect(Options::default())?.list_files()?;
+    let options = Options {
+        list_only: true,
+        ..opt.to_options()
+    };
+    let (file_list, _stats) = address.connect(options)?.list_files()?;
     for entry in file_list {
         println!("{}", &entry)
     }

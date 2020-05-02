@@ -21,7 +21,7 @@ use std::io;
 use crate::varint::ReadVarint;
 
 /// Statistics from a remote server about how much work it did.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ServerStatistics {
     // The rsync(1) man page has some description of these.
     /// Total bytes sent over the network from the client to the server.

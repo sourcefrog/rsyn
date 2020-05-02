@@ -20,13 +20,25 @@ use std::io;
 
 use crate::varint::ReadVarint;
 
+/// Statistics from a remote server about how much work it did.
 #[derive(Debug)]
 pub struct ServerStatistics {
+    // The rsync(1) man page has some description of these.
+    /// Total bytes sent over the network from the client to the server.
     pub total_bytes_read: i64,
+    /// Total bytes sent over the network from the server to the client,
+    /// ignoring any text messages.
     pub total_bytes_written: i64,
+    /// The sum of the size of all file sizes in the transfer. This does not
+    /// count directories or special files, but does include the size of
+    /// symlinks.
     pub total_file_size: i64,
+    /// The number of seconds spent by the server building a file list.
     pub flist_build_time: i64,
+    /// The number of seconds the server spent sending the file list to the
+    /// client.
     pub flist_xfer_time: i64,
+    // TODO: More fields in at least some protocol versions.
 }
 
 impl ServerStatistics {

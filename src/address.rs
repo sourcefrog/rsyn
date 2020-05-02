@@ -49,6 +49,20 @@ pub struct Address {
 
     /// How to start the SSH transport, if applicable.
     ssh: Option<Ssh>,
+
+    /// Use the rsync daemon wrapper protocol.
+    ///
+    /// This can be done either over bare TCP, or wrapped in SSH.
+    /// (See "USING RSYNC-DAEMON FEATURES VIA A REMOTE-SHELL CONNECTION" in the
+    /// rsync manual.)
+    daemon: Option<Daemon>,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+struct Daemon {
+    user: Option<String>,
+    host: String,
+    port: Option<u16>,
 }
 
 /// Describes how to start an SSH subprocess.
@@ -67,6 +81,7 @@ impl Address {
         Address {
             path: path.as_ref().as_os_str().into(),
             ssh: None,
+            daemon: None,
         }
     }
 
@@ -85,6 +100,7 @@ impl Address {
                 user: user.map(String::from),
                 host: host.into(),
             }),
+            daemon: None,
         }
     }
 
@@ -116,6 +132,9 @@ impl Address {
     /// The `Address` can be opened any number of times, but each `Connection`
     /// can only do a single operation.
     pub fn connect(&self, options: Options) -> Result<Connection> {
+        if self.daemon.is_some() {
+            todo!("daemon mode is not implemented yet");
+        }
         let mut args = self.build_args()?;
         let mut command = Command::new(args.remove(0));
         command.args(args);
@@ -163,24 +182,43 @@ impl FromStr for Address {
             )
             .unwrap();
         }
-        if let Some(_caps) = URL_RE.captures(s) {
-            todo!("rsync daemon not implemented yet");
+        if let Some(caps) = URL_RE.captures(s) {
+            Ok(Address {
+                daemon: Some(Daemon {
+                    host: caps["host"].into(),
+                    user: caps.name("user").map(|m| m.as_str().to_string()),
+                    port: caps.name("port").map(|p| p.as_str().parse().unwrap()),
+                }),
+                path: caps["path"].into(),
+                ssh: None,
+            })
         } else if let Some(caps) = SFTP_RE.captures(s) {
             if caps.name("colon").is_some() {
-                todo!("rsync daemon not implemented yet");
+                Ok(Address {
+                    path: caps["path"].into(),
+                    daemon: Some(Daemon {
+                        user: caps.name("user").map(|m| m.as_str().to_string()),
+                        host: caps["host"].into(),
+                        port: None,
+                    }),
+                    ssh: None,
+                })
+            } else {
+                Ok(Address {
+                    path: caps["path"].into(),
+                    ssh: Some(Ssh {
+                        user: caps.name("user").map(|m| m.as_str().to_string()),
+                        host: caps["host"].into(),
+                    }),
+                    daemon: None,
+                })
             }
-            Ok(Address {
-                path: caps["path"].into(),
-                ssh: Some(Ssh {
-                    user: caps.name("user").map(|m| m.as_str().to_string()),
-                    host: caps["host"].into(),
-                }),
-            })
         } else {
             // Assume it's just a path.
             Ok(Address {
                 path: s.into(),
                 ssh: None,
+                daemon: None,
             })
         }
     }
@@ -201,6 +239,7 @@ mod test {
                     host: "bilbo".into(),
                 }),
                 path: "/home/www".into(),
+                daemon: None,
             }
         );
     }
@@ -216,43 +255,95 @@ mod test {
                     host: "bilbo".to_string(),
                 }),
                 path: "/home/www".into(),
+                daemon: None,
             }
         );
     }
 
-    // Should panic because unimplemented but recognized.
     #[test]
-    #[should_panic]
     fn parse_daemon_simple() {
-        Address::from_str("rsync.samba.org::foo").unwrap();
+        let address = Address::from_str("rsync.samba.org::foo").unwrap();
+        assert_eq!(
+            address,
+            Address {
+                path: "foo".into(),
+                ssh: None,
+                daemon: Some(Daemon {
+                    host: "rsync.samba.org".into(),
+                    user: None,
+                    port: None,
+                }),
+            }
+        );
     }
 
-    // Should panic because unimplemented but recognized.
     #[test]
-    #[should_panic]
     fn parse_daemon_with_user() {
-        Address::from_str("rsync@rsync.samba.org::meat/bread/wine").unwrap();
+        let address = Address::from_str("rsync@rsync.samba.org::meat/bread/wine").unwrap();
+        assert_eq!(
+            address,
+            Address {
+                path: "meat/bread/wine".into(),
+                ssh: None,
+                daemon: Some(Daemon {
+                    host: "rsync.samba.org".into(),
+                    user: Some("rsync".into()),
+                    port: None,
+                }),
+            }
+        );
     }
 
-    // Should panic because unimplemented but recognized.
     #[test]
-    #[should_panic]
     fn parse_rsync_url() {
-        Address::from_str("rsync://rsync.samba.org/foo").unwrap();
+        let address = Address::from_str("rsync://rsync.samba.org/foo").unwrap();
+        assert_eq!(
+            address,
+            Address {
+                path: "foo".into(),
+                ssh: None,
+                daemon: Some(Daemon {
+                    host: "rsync.samba.org".into(),
+                    user: None,
+                    port: None,
+                }),
+            }
+        );
     }
 
-    // Should panic because unimplemented but recognized.
     #[test]
-    #[should_panic]
     fn parse_rsync_url_with_username() {
-        Address::from_str("rsync://anon@rsync.samba.org/foo").unwrap();
+        let address = Address::from_str("rsync://anon@rsync.samba.org/foo").unwrap();
+        assert_eq!(
+            address,
+            Address {
+                path: "foo".into(),
+                ssh: None,
+                daemon: Some(Daemon {
+                    host: "rsync.samba.org".into(),
+                    user: Some("anon".into()),
+                    port: None,
+                }),
+            }
+        );
     }
 
-    // Should panic because unimplemented but recognized.
     #[test]
-    #[should_panic]
     fn parse_rsync_url_with_username_and_port() {
-        Address::from_str("rsync://anon@rsync.samba.org:8370/alpha/beta/gamma").unwrap();
+        let address =
+            Address::from_str("rsync://anon@rsync.samba.org:8370/alpha/beta/gamma").unwrap();
+        assert_eq!(
+            address,
+            Address {
+                path: "alpha/beta/gamma".into(),
+                ssh: None,
+                daemon: Some(Daemon {
+                    host: "rsync.samba.org".into(),
+                    user: Some("anon".into()),
+                    port: Some(8370),
+                }),
+            }
+        );
     }
 
     #[test]
@@ -261,8 +352,9 @@ mod test {
         assert_eq!(
             address,
             Address {
-                ssh: None,
                 path: "/usr/local/foo".into(),
+                ssh: None,
+                daemon: None,
             }
         );
     }
@@ -314,5 +406,13 @@ mod test {
                 "/home/mbp"
             ],
         );
+    }
+
+    /// Daemon mode is not implemented yet.
+    #[test]
+    #[should_panic]
+    fn daemon_connection_unimplemented() {
+        let address: Address = "rsync.example.com::example".parse().unwrap();
+        let _ = address.connect(Options::default());
     }
 }

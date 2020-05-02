@@ -14,14 +14,16 @@
 
 //! File lists and entries.
 
+use std::convert::TryInto;
 use std::fmt;
-use std::io;
 
+use anyhow::Context;
 use chrono::{Local, TimeZone};
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use crate::Result;
 use crate::varint::ReadVarint;
 
 // const STATUS_TOP_LEVEL_DIR: u8 = 0x01;
@@ -38,7 +40,7 @@ pub struct FileEntry {
     name: Vec<u8>,
 
     /// Length of the file, in bytes.
-    pub file_len: i64,
+    pub file_len: u64,
 
     /// Unix mode, containing the file type and permissions.
     pub mode: u32,
@@ -118,7 +120,7 @@ impl fmt::Display for FileEntry {
 pub type FileList = Vec<FileEntry>;
 
 /// Read a file list off the wire, and return it in sorted order.
-pub(crate) fn read_file_list(r: &mut ReadVarint) -> io::Result<FileList> {
+pub(crate) fn read_file_list(r: &mut ReadVarint) -> Result<FileList> {
     // TODO: Support receipt of uid and gid with -o, -g.
     // TODO: Support devices, links, etc.
 
@@ -156,7 +158,8 @@ pub(crate) fn read_file_list(r: &mut ReadVarint) -> io::Result<FileList> {
         debug!("  filename: {:?}", String::from_utf8_lossy(&name));
         assert!(!name.is_empty());
 
-        let file_len = r.read_i64()?;
+        let file_len: u64 = r.read_i64()?.try_into()
+            .context("Received negative file_len")?;
         debug!("  file_len: {}", file_len);
 
         let mtime = if status & STATUS_REPEAT_MTIME == 0 {

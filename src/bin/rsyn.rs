@@ -20,7 +20,7 @@ use std::path::PathBuf;
 use log::{debug, error, info, trace, warn};
 use structopt::StructOpt;
 
-use rsyn::{Address, Result};
+use rsyn::{Address, Options, Result};
 
 #[derive(Debug, StructOpt)]
 #[structopt()]
@@ -56,7 +56,7 @@ fn main() -> Result<()> {
     // let address = Address::ssh(None, "localhost", opt.path.to_str().unwrap());
     let address = Address::local(&opt.path);
 
-    let (file_list, _stats) = address.connect()?.list_files()?;
+    let (file_list, _stats) = address.connect(Options::default())?.list_files()?;
     for entry in file_list {
         println!("{}", &entry)
     }

@@ -17,10 +17,10 @@
 //! Use the `Connection` type to open a connection then list or transfer files:
 //!
 //! ```
-//! use rsyn::Address;
+//! use rsyn::{Address, Options};
 //! let address = Address::local("./src");
 //! // Open a connection to a local rsync server, and list the source directory.
-//! let (flist, _stats) = address.connect()?
+//! let (flist, _stats) = address.connect(Options::default())?
 //!     .list_files()?;
 //!
 //! // We can see the `lib.rs` in the listing.

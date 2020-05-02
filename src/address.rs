@@ -38,9 +38,17 @@ const RSYNC_COMMAND: &str = "rsync";
 /// After building up the desired configuration, use [`.connect()`](#method.connect)
 /// to open a [`Connection`](struct.Connection.html) to transfer files.
 ///
-/// Various constructor methods define Addresses of various types.  For example:
+/// Addresses can be parsed from strings:
+/// ```
+/// use std::str::FromStr;
+/// let address = rsyn::Address::from_str("rsync.example.com::module")
+///     .expect("Parse failed");
+/// ```
+///
+/// Or constructed:
 /// ```
 /// let address = rsyn::Address::local("./src");
+/// let address = rsyn::Address::ssh(Some("user"), "host.example.com", "./src");
 /// ```
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Address {

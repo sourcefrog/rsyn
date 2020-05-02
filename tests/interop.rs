@@ -20,7 +20,7 @@ use anyhow::Result;
 use chrono::prelude::*;
 use tempdir::TempDir;
 
-use rsyn::Connection;
+use rsyn::{Address};
 
 /// List files from a newly-created temporary directory.
 #[test]
@@ -33,7 +33,8 @@ fn list_files() {
     create_dir(tmp.path().join("subdir")).unwrap();
     File::create(tmp.path().join("subdir").join("galah")).unwrap();
 
-    let (flist, stats) = Connection::local_subprocess(tmp.path())
+    let (flist, stats) = Address::local(tmp.path())
+        .connect()
         .unwrap()
         .list_files()
         .unwrap();
@@ -83,7 +84,9 @@ fn list_symlink() -> rsyn::Result<()> {
     let tmp = TempDir::new("rsyn_interop_list_symlink")?;
     std::os::unix::fs::symlink("dangling link", tmp.path().join("a link"))?;
 
-    let (flist, _stats) = Connection::local_subprocess(tmp.path())?.list_files()?;
+    let (flist, _stats) = Address::local(tmp.path())
+        .connect()?
+        .list_files()?;
 
     assert_eq!(flist.len(), 2);
     assert_eq!(flist[0].name_lossy_string(), ".");
@@ -102,7 +105,7 @@ fn list_symlink() -> rsyn::Result<()> {
 #[test]
 fn list_files_etc() -> Result<()> {
     install_test_logger();
-    let (_flist, _stats) = Connection::local_subprocess("/etc")?.list_files()?;
+    let (_flist, _stats) = Address::local("/etc").connect()?.list_files()?;
     Ok(())
 }
 
@@ -111,7 +114,7 @@ fn list_files_etc() -> Result<()> {
 #[test]
 fn list_files_dev() -> Result<()> {
     install_test_logger();
-    let (_flist, _stats) = Connection::local_subprocess("/dev")?.list_files()?;
+    let (_flist, _stats) = Address::local("/dev").connect()?.list_files()?;
     Ok(())
 }
 

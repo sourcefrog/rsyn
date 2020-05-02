@@ -17,8 +17,10 @@
 //! Use the `Connection` type to open a connection then list or transfer files:
 //!
 //! ```
+//! use rsyn::Address;
+//! let address = Address::local("./src");
 //! // Open a connection to a local rsync server, and list the source directory.
-//! let (flist, _stats) = rsyn::Connection::local_subprocess("./src")?
+//! let (flist, _stats) = address.connect()?
 //!     .list_files()?;
 //!
 //! // We can see the `lib.rs` in the listing.
@@ -27,6 +29,7 @@
 //! # rsyn::Result::Ok(())
 //! ```
 
+mod address;
 mod connection;
 mod flist;
 pub mod logging;
@@ -34,6 +37,7 @@ mod mux;
 mod statistics;
 mod varint;
 
+pub use address::Address;
 pub use connection::Connection;
 pub use flist::{FileEntry, FileList};
 pub use statistics::ServerStatistics;

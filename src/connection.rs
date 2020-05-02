@@ -35,6 +35,8 @@ const MY_PROTOCOL_VERSION: i32 = 29;
 
 /// Connection to an rsync server.
 ///
+/// Connections are obtained from `Address::connect`.
+///
 /// Due to the protocol definition, only one transfer (list, send, or receive)
 /// can be done per connection.
 pub struct Connection {
@@ -51,31 +53,11 @@ pub struct Connection {
 }
 
 impl Connection {
-    /// Open a new connection to a local rsync server subprocess, over a pair of
-    /// pipes.
+    /// Start a new connection, by doing the rsync handshake protocol.
     ///
-    /// Since this can only read files off the local filesystem, it's mostly
-    /// interesting for testing.
-    pub fn local_subprocess<P: AsRef<Path>>(path: P) -> Result<Connection> {
-        let mut child = Command::new("rsync")
-            .arg("--server")
-            .arg("--sender")
-            .arg("-vvr")
-            .arg(path.as_ref())
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .context("Failed to launch rsync subprocess")?;
-
-        // We can ignore the actual child object, although we could keep it
-        // if we care about the subprocess exit code.
-        let r = Box::new(child.stdout.take().expect("child has no stdout"));
-        let w = Box::new(child.stdin.take().expect("child has no stdin"));
-
-        Connection::handshake(r, w, child)
-    }
-
-    fn handshake(r: Box<dyn Read>, w: Box<dyn Write>, child: Child) -> Result<Connection> {
+    ///
+    /// Most users should call `Address::connect` instead.
+    pub(crate) fn handshake(r: Box<dyn Read>, w: Box<dyn Write>, child: Child) -> Result<Connection> {
         let mut wv = WriteVarint::new(w);
         let mut rv = ReadVarint::new(r);
 

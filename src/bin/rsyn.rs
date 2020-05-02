@@ -20,7 +20,7 @@ use std::path::PathBuf;
 use log::{debug, error, info, trace, warn};
 use structopt::StructOpt;
 
-use rsyn::{Connection, Result};
+use rsyn::{Address, Result};
 
 #[derive(Debug, StructOpt)]
 #[structopt()]
@@ -55,7 +55,8 @@ fn main() -> Result<()> {
         .apply()
         .expect("Failed to configure logger");
 
-    let (file_list, _stats) = Connection::local_subprocess(&opt.path)?.list_files()?;
+    let (file_list, _stats) = Address::local(&opt.path)
+        .connect()?.list_files()?;
     for entry in file_list {
         println!("{}", &entry)
     }

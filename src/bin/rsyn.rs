@@ -55,8 +55,10 @@ fn main() -> Result<()> {
         .apply()
         .expect("Failed to configure logger");
 
-    let (file_list, _stats) = Address::local(&opt.path)
-        .connect()?.list_files()?;
+    // let address = Address::ssh(None, "localhost", opt.path.to_str().unwrap());
+    let address = Address::local(&opt.path);
+
+    let (file_list, _stats) = address.connect()?.list_files()?;
     for entry in file_list {
         println!("{}", &entry)
     }

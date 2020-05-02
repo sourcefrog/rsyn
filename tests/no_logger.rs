@@ -24,8 +24,6 @@ fn list_files_with_no_logger() {
     // TODO: Assertions about the contents.
     // TODO: Assert that there is, in fact, no logger.
     Address::local("./src")
-        .connect(Options::default())
-        .expect("Failed to connect")
-        .list_files()
+        .list_files(Options::default())
         .expect("Failed to list files");
 }

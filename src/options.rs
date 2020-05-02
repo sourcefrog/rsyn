@@ -24,7 +24,6 @@ pub struct Options {
 
     /// Only list files.
     ///
-    /// This must be specified to cause the server to list files when not
-    /// given `-r`.
+    /// This is implied by `Address:list_files` and need not be separately set.
     pub list_only: bool,
 }

@@ -14,7 +14,7 @@
 
 //! A wire-compatible rsync client in Rust.
 //!
-//! Use the `Connection` type to open a connection then list or transfer files:
+//! Use the [`Address`](struct.Address.html) type to list or transfer files:
 //!
 //! ```
 //! use rsyn::{Address, Options};
@@ -25,8 +25,7 @@
 //!     recursive: true,
 //!     ..Options::default()
 //! };
-//! let (flist, _stats) = address.connect(options)?
-//!     .list_files()?;
+//! let (flist, _stats) = address.list_files(options)?;
 //!
 //! // We can see the `lib.rs` in the listing.
 //! assert!(flist.iter().any(|fe|

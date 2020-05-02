@@ -74,7 +74,7 @@ fn main() -> Result<()> {
         list_only: true,
         ..opt.to_options()
     };
-    let (file_list, _stats) = address.connect(options)?.list_files()?;
+    let (file_list, _stats) = address.list_files(options)?;
     for entry in file_list {
         println!("{}", &entry)
     }

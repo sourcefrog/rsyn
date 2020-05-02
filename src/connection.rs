@@ -102,7 +102,7 @@ impl Connection {
     ///
     /// The file list is in the sorted order defined by the protocol, which
     /// is strcmp on the raw bytes of the names.
-    pub fn list_files(mut self) -> Result<(FileList, ServerStatistics)> {
+    pub(crate) fn list_files(mut self) -> Result<(FileList, ServerStatistics)> {
         // send exclusion list length of 0
         self.send_exclusions()?;
         let file_list = read_file_list(&mut self.rv)?;

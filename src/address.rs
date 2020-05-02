@@ -25,7 +25,7 @@ use anyhow::Context;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use crate::{Connection, Options, Result};
+use crate::{Connection, FileList, Options, Result, ServerStatistics};
 
 /// SSH command name, to start it as a subprocess.
 const SSH_COMMAND: &str = "ssh";
@@ -34,9 +34,6 @@ const RSYNC_COMMAND: &str = "rsync";
 
 /// The address of an rsync server, including
 /// information about how to open the connection.
-///
-/// After building up the desired configuration, use [`.connect()`](#method.connect)
-/// to open a [`Connection`](struct.Connection.html) to transfer files.
 ///
 /// Addresses can be parsed from strings:
 /// ```
@@ -139,6 +136,17 @@ impl Address {
         }
         v.push(self.path.clone());
         Ok(v)
+    }
+
+    /// List files from the remote server.
+    ///
+    /// This implicitly sets the `list_only` option.
+    pub fn list_files(&self, mut options: Options) -> Result<(FileList, ServerStatistics)> {
+        options.list_only = true;
+        self.connect(options)
+            .context("Failed to connect")?
+            .list_files()
+            .context("Failed to list files")
     }
 
     /// Opens a connection to this address.

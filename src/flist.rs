@@ -130,7 +130,9 @@ pub(crate) fn read_file_list(r: &mut ReadVarint) -> Result<FileList> {
 
     let mut v: Vec<FileEntry> = Vec::new();
     loop {
-        let status = r.read_u8()?;
+        let status = r
+            .read_u8()
+            .context("Failed to read file entry status byte")?;
         debug!("file list status {:#x}", status);
         if status == 0 {
             break;
@@ -142,7 +144,7 @@ pub(crate) fn read_file_list(r: &mut ReadVarint) -> Result<FileList> {
         // * Partially repeated, with a byte specifying how much is
         //   inherited.
         let inherit_name_bytes = if (status & STATUS_REPEAT_PARTIAL_NAME) != 0 {
-            r.read_u8()? as usize
+            r.read_u8().context("Failed to read inherited name bytes")? as usize
         } else {
             0
         };

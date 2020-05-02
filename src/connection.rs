@@ -120,7 +120,9 @@ impl Connection {
 
         // Request no files.
         debug!("send end of phase 1");
-        self.wv.write_i32(-1)?; // end of phase 1
+        self.wv
+            .write_i32(-1)
+            .context("Failed to send phase 1 transition")?; // end of phase 1
 
         // Server stops here if there were no files.
         if file_list.is_empty() {
@@ -129,19 +131,40 @@ impl Connection {
             return Ok((file_list, ServerStatistics::default()));
         }
 
-        assert_eq!(self.rv.read_i32()?, -1);
+        assert_eq!(
+            self.rv
+                .read_i32()
+                .context("Failed to read phase 1 transition")?,
+            -1
+        );
         debug!("send end of phase 2");
-        self.wv.write_i32(-1)?; // end of phase 2
-        assert_eq!(self.rv.read_i32()?, -1);
+        self.wv
+            .write_i32(-1)
+            .context("Failed to send phase 2 transition")?; // end of phase 2
+        assert_eq!(
+            self.rv
+                .read_i32()
+                .context("Failed to read phase 2 transtion")?,
+            -1
+        );
         debug!("send end of sequence");
-        self.wv.write_i32(-1)?; // end-of-sequence marker
-        assert_eq!(self.rv.read_i32()?, -1);
+        self.wv
+            .write_i32(-1)
+            .context("Failed to send end-of-sequence marker")?; // end-of-sequence marker
+        assert_eq!(
+            self.rv
+                .read_i32()
+                .context("Failed to read end-of-sequence marker")?,
+            -1
+        );
         let server_stats =
             ServerStatistics::read(&mut self.rv).context("Failed to read server statistics")?;
         info!("server statistics: {:#?}", server_stats);
 
         // one more end?
-        self.wv.write_i32(-1)?;
+        self.wv
+            .write_i32(-1)
+            .context("Failed to send final marker")?;
         self.shutdown()?;
         Ok((file_list, server_stats))
     }

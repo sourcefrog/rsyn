@@ -26,10 +26,10 @@ use anyhow::{bail, Context, Result};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::ServerStatistics;
 use crate::flist::{read_file_list, FileList};
 use crate::mux::DemuxRead;
 use crate::varint::{ReadVarint, WriteVarint};
+use crate::{Options, ServerStatistics};
 
 const MY_PROTOCOL_VERSION: i32 = 29;
 
@@ -50,6 +50,9 @@ pub struct Connection {
     salt: i32,
 
     child: Child,
+
+    #[allow(unused)]
+    options: Options,
 }
 
 impl Connection {
@@ -57,7 +60,12 @@ impl Connection {
     ///
     ///
     /// Most users should call `Address::connect` instead.
-    pub(crate) fn handshake(r: Box<dyn Read>, w: Box<dyn Write>, child: Child) -> Result<Connection> {
+    pub(crate) fn handshake(
+        r: Box<dyn Read>,
+        w: Box<dyn Write>,
+        child: Child,
+        options: Options,
+    ) -> Result<Connection> {
         let mut wv = WriteVarint::new(w);
         let mut rv = ReadVarint::new(r);
 
@@ -86,6 +94,7 @@ impl Connection {
             server_version,
             salt,
             child,
+            options,
         })
     }
 
@@ -110,14 +119,17 @@ impl Connection {
         }
 
         // Request no files.
+        debug!("send end of phase 1");
         self.wv.write_i32(-1)?; // end of phase 1
         assert_eq!(self.rv.read_i32()?, -1);
+        debug!("send end of phase 2");
         self.wv.write_i32(-1)?; // end of phase 2
         assert_eq!(self.rv.read_i32()?, -1);
+        debug!("send end of sequence");
         self.wv.write_i32(-1)?; // end-of-sequence marker
         assert_eq!(self.rv.read_i32()?, -1);
-        let server_stats = ServerStatistics::read(&mut self.rv)
-            .context("Failed to read server statistics")?;
+        let server_stats =
+            ServerStatistics::read(&mut self.rv).context("Failed to read server statistics")?;
         info!("server statistics: {:#?}", server_stats);
 
         // one more end?
@@ -137,6 +149,7 @@ impl Connection {
             server_version: _,
             salt: _,
             mut child,
+            options: _,
         } = self;
 
         rv.check_for_eof()?;

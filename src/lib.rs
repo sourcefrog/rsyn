@@ -34,12 +34,14 @@ mod connection;
 mod flist;
 pub mod logging;
 mod mux;
+mod options;
 mod statistics;
 mod varint;
 
 pub use address::Address;
 pub use connection::Connection;
 pub use flist::{FileEntry, FileList};
+pub use options::Options;
 pub use statistics::ServerStatistics;
 
 /// General Result type from rsyn APIs.

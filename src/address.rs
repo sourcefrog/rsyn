@@ -22,7 +22,7 @@ use std::process::{Command, Stdio};
 
 use anyhow::Context;
 
-use crate::{Connection, Result};
+use crate::{Connection, Options, Result};
 
 /// SSH command name, to start it as a subprocess.
 const SSH_COMMAND: &str = "ssh";
@@ -46,6 +46,9 @@ pub struct Address {
 
     /// How to start the SSH transport, if applicable.
     ssh: Option<Ssh>,
+
+    /// Options configured into the remote server or the protocol.
+    options: Options,
 }
 
 /// Describes how to start an SSH subprocess.
@@ -64,6 +67,7 @@ impl Address {
         Address {
             path: path.as_ref().as_os_str().into(),
             ssh: None,
+            options: Options::default(),
         }
     }
 
@@ -82,7 +86,12 @@ impl Address {
                 user: user.map(String::from),
                 host: host.into(),
             }),
+            options: Options::default(),
         }
+    }
+
+    pub fn set_options(&mut self, options: Options) {
+        self.options = options;
     }
 
     /// Builds the arguments to start a connection subcommand, including the
@@ -125,7 +134,7 @@ impl Address {
         let r = Box::new(child.stdout.take().expect("Child has no stdout"));
         let w = Box::new(child.stdin.take().expect("Child has no stdin"));
 
-        Connection::handshake(r, w, child)
+        Connection::handshake(r, w, child, self.options.clone())
     }
 }
 

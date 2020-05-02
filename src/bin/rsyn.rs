@@ -24,11 +24,9 @@ use rsyn::{Address, Result};
 
 #[derive(Debug, StructOpt)]
 #[structopt()]
-/// [pre-alpha] Wire-compatible rsync in Rust
+/// [pre-alpha] Wire-compatible rsync client in Rust.
 ///
-/// At present this program can only recursively list the contents of a local
-/// directory, but it does this by launching rsync and talking its network
-/// protocol.
+/// With one PATH argument, lists the contents of that directory.
 struct Opt {
     /// Directory to list.
     path: PathBuf,

@@ -111,7 +111,7 @@ impl Address {
 
     /// Builds the arguments to start a connection subcommand, including the
     /// command name.
-    fn build_args(&self, options: &Options) -> Result<Vec<OsString>> {
+    fn build_args(&self, options: &Options) -> Vec<OsString> {
         let mut v = Vec::<OsString>::new();
         let mut push_str = |s: &str| v.push(s.into());
         if let Some(ref ssh) = self.ssh {
@@ -139,7 +139,7 @@ impl Address {
         } else {
             v.push(self.path.clone())
         }
-        Ok(v)
+        v
     }
 
     /// List files from the remote server.
@@ -161,7 +161,7 @@ impl Address {
         if self.daemon.is_some() {
             todo!("daemon mode is not implemented yet");
         }
-        let mut args = self.build_args(&options)?;
+        let mut args = self.build_args(&options);
         let mut command = Command::new(args.remove(0));
         command.args(args);
         command.stdin(Stdio::piped());
@@ -387,12 +387,10 @@ mod test {
 
     #[test]
     fn build_local_args() {
-        let args = Address::local("./src")
-            .build_args(&Options {
-                recursive: true,
-                ..Options::default()
-            })
-            .unwrap();
+        let args = Address::local("./src").build_args(&Options {
+            recursive: true,
+            ..Options::default()
+        });
         assert_eq!(
             args,
             vec!["rsync", "--server", "--sender", "-vv", "-r", "./src"],
@@ -404,9 +402,7 @@ mod test {
         // Actually running SSH is a bit hard to test hermetically, but let's
         // at least check the command lines are plausible.
 
-        let args = Address::ssh(None, "samba.org", "/home/mbp")
-            .build_args(&Options::default())
-            .unwrap();
+        let args = Address::ssh(None, "samba.org", "/home/mbp").build_args(&Options::default());
         assert_eq!(
             args,
             vec![
@@ -423,12 +419,10 @@ mod test {
 
     #[test]
     fn build_ssh_args_with_user() {
-        let args = Address::ssh(Some("mbp"), "samba.org", "/home/mbp")
-            .build_args(&Options {
-                recursive: true,
-                list_only: true,
-            })
-            .unwrap();
+        let args = Address::ssh(Some("mbp"), "samba.org", "/home/mbp").build_args(&Options {
+            recursive: true,
+            list_only: true,
+        });
         assert_eq!(
             args,
             vec![
@@ -452,12 +446,10 @@ mod test {
     #[test]
     fn build_ssh_args_for_default_directory() {
         let address: Address = "example-host:".parse().unwrap();
-        let args = address
-            .build_args(&Options {
-                list_only: true,
-                ..Options::default()
-            })
-            .unwrap();
+        let args = address.build_args(&Options {
+            list_only: true,
+            ..Options::default()
+        });
         assert_eq!(
             args,
             vec![

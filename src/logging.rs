@@ -22,7 +22,7 @@ use std::fmt;
 /// configuration should work.
 pub fn format_log(out: fern::FormatCallback, args: &fmt::Arguments, record: &log::Record) {
     out.finish(format_args!(
-        "[{}][{}] {}",
+        "[{:<30}][{}] {}",
         record.target(),
         record.level().to_string().chars().next().unwrap(),
         args

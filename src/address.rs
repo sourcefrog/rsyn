@@ -170,8 +170,8 @@ impl Address {
             todo!("daemon mode is not implemented yet");
         }
         let mut args = self.build_args(&options);
-        let mut command = Command::new(args.remove(0));
         info!("Run connection command {:?}", &args);
+        let mut command = Command::new(args.remove(0));
         command.args(args);
         command.stdin(Stdio::piped());
         command.stdout(Stdio::piped());

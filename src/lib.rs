@@ -17,14 +17,10 @@
 //! Use the [`Address`](struct.Address.html) type to list or transfer files:
 //!
 //! ```
-//! use rsyn::{Address, Options};
+//! use rsyn::{Address, Options, OptionsBuilder};
 //! let address = Address::local("./src");
 //! // Open a connection to a local rsync server, and list the source directory.
-//! let options = Options {
-//!     list_only: true,
-//!     recursive: true,
-//!     ..Options::default()
-//! };
+//! let options = OptionsBuilder::default().recursive(true).build().unwrap();
 //! let (flist, _stats) = address.list_files(options)?;
 //!
 //! // We can see the `lib.rs` in the listing.
@@ -45,7 +41,7 @@ mod varint;
 pub use address::Address;
 pub use connection::Connection;
 pub use flist::{FileEntry, FileList};
-pub use options::Options;
+pub use options::{Options, OptionsBuilder};
 pub use statistics::ServerStatistics;
 
 /// General Result type from rsyn APIs.

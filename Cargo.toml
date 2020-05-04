@@ -6,14 +6,15 @@ categories = [
 ]
 description = "[pre-alpha] Wire-compatible rsync client"
 edition = "2018"
+license = "Apache-2.0"
 name = "rsyn"
 publish = false
-license = "Apache-2.0"
 version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0.28"
 chrono = "0.4.11"
+derive_builder = "0.9.0"
 fern = "0.6"
 hex = "0.4.2"
 lazy_static = "1.4.0"

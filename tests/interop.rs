@@ -20,7 +20,7 @@ use anyhow::Result;
 use chrono::prelude::*;
 use tempdir::TempDir;
 
-use rsyn::{Address, Options};
+use rsyn::{Address, Options, OptionsBuilder};
 
 /// List files from a newly-created temporary directory.
 #[test]
@@ -33,12 +33,8 @@ fn list_files() {
     create_dir(tmp.path().join("subdir")).unwrap();
     File::create(tmp.path().join("subdir").join("galah")).unwrap();
 
-    let (flist, stats) = Address::local(tmp.path())
-        .list_files(Options {
-            recursive: true,
-            ..Options::default()
-        })
-        .unwrap();
+    let options = OptionsBuilder::default().recursive(true).build().unwrap();
+    let (flist, stats) = Address::local(tmp.path()).list_files(options).unwrap();
 
     assert_eq!(flist.len(), 5);
     let names: Vec<String> = flist
@@ -85,11 +81,7 @@ fn list_symlink() -> rsyn::Result<()> {
     let tmp = TempDir::new("rsyn_interop_list_symlink")?;
     std::os::unix::fs::symlink("dangling link", tmp.path().join("a link"))?;
 
-    let options = Options {
-        list_only: true,
-        recursive: false,
-        ..Options::default()
-    };
+    let options = Options::default();
     let (flist, _stats) = Address::local(tmp.path()).list_files(options)?;
 
     assert_eq!(flist.len(), 2);
@@ -109,11 +101,8 @@ fn list_symlink() -> rsyn::Result<()> {
 #[test]
 fn list_files_etc() -> Result<()> {
     install_test_logger();
-    let (_flist, _stats) = Address::local("/etc").list_files(Options {
-        recursive: true,
-        list_only: true,
-        ..Options::default()
-    })?;
+    let options = OptionsBuilder::default().recursive(true).build().unwrap();
+    let (_flist, _stats) = Address::local("/etc").list_files(options)?;
     Ok(())
 }
 
@@ -122,11 +111,8 @@ fn list_files_etc() -> Result<()> {
 #[test]
 fn list_files_dev() -> Result<()> {
     install_test_logger();
-    let (_flist, _stats) = Address::local("/dev").list_files(Options {
-        recursive: true,
-        list_only: true,
-        ..Options::default()
-    })?;
+    let options = OptionsBuilder::default().recursive(true).build().unwrap();
+    let (_flist, _stats) = Address::local("/dev").list_files(options)?;
     Ok(())
 }
 

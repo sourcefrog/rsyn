@@ -262,6 +262,7 @@ impl FromStr for Address {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::OptionsBuilder;
 
     #[test]
     fn parse_sftp_style_without_user() {
@@ -405,10 +406,8 @@ mod test {
 
     #[test]
     fn build_local_args_verbose() {
-        let args = Address::local("./src").build_args(&Options {
-            verbose: 3,
-            ..Options::default()
-        });
+        let options = OptionsBuilder::default().verbose(3).build().unwrap();
+        let args = Address::local("./src").build_args(&options);
         assert_eq!(args, vec!["rsync", "--server", "--sender", "-vvv", "./src"],);
     }
 
@@ -433,11 +432,12 @@ mod test {
 
     #[test]
     fn build_ssh_args_with_user() {
-        let args = Address::ssh(Some("mbp"), "samba.org", "/home/mbp").build_args(&Options {
-            recursive: true,
-            list_only: true,
-            ..Options::default()
-        });
+        let options = OptionsBuilder::default()
+            .recursive(true)
+            .list_only(true)
+            .build()
+            .unwrap();
+        let args = Address::ssh(Some("mbp"), "samba.org", "/home/mbp").build_args(&options);
         assert_eq!(
             args,
             vec![

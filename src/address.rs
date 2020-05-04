@@ -23,6 +23,8 @@ use std::str::FromStr;
 
 use anyhow::Context;
 use lazy_static::lazy_static;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
 use regex::Regex;
 
 use crate::{Connection, FileList, Options, Result, ServerStatistics};
@@ -127,7 +129,13 @@ impl Address {
         };
         push_str("--server");
         push_str("--sender");
-        push_str("-vv");
+        if options.verbose > 0 {
+            let mut o = "-".to_string();
+            for _ in 0..options.verbose {
+                o.push('v');
+            }
+            push_str(&o);
+        }
         if options.list_only {
             push_str("--list-only")
         }
@@ -163,6 +171,7 @@ impl Address {
         }
         let mut args = self.build_args(&options);
         let mut command = Command::new(args.remove(0));
+        info!("Run connection command {:?}", &args);
         command.args(args);
         command.stdin(Stdio::piped());
         command.stdout(Stdio::piped());
@@ -391,10 +400,16 @@ mod test {
             recursive: true,
             ..Options::default()
         });
-        assert_eq!(
-            args,
-            vec!["rsync", "--server", "--sender", "-vv", "-r", "./src"],
-        );
+        assert_eq!(args, vec!["rsync", "--server", "--sender", "-r", "./src"],);
+    }
+
+    #[test]
+    fn build_local_args_verbose() {
+        let args = Address::local("./src").build_args(&Options {
+            verbose: 3,
+            ..Options::default()
+        });
+        assert_eq!(args, vec!["rsync", "--server", "--sender", "-vvv", "./src"],);
     }
 
     #[test]
@@ -411,7 +426,6 @@ mod test {
                 "rsync",
                 "--server",
                 "--sender",
-                "-vv",
                 "/home/mbp"
             ],
         );
@@ -422,6 +436,7 @@ mod test {
         let args = Address::ssh(Some("mbp"), "samba.org", "/home/mbp").build_args(&Options {
             recursive: true,
             list_only: true,
+            ..Options::default()
         });
         assert_eq!(
             args,
@@ -433,7 +448,6 @@ mod test {
                 "rsync",
                 "--server",
                 "--sender",
-                "-vv",
                 "--list-only",
                 "-r",
                 "/home/mbp"
@@ -458,7 +472,6 @@ mod test {
                 "rsync",
                 "--server",
                 "--sender",
-                "-vv",
                 "--list-only",
                 "."
             ],

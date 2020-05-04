@@ -26,4 +26,9 @@ pub struct Options {
     ///
     /// This is implied by `Address:list_files` and need not be separately set.
     pub list_only: bool,
+
+    /// Be verbose.
+    ///
+    /// (This is passed to the server to encourage it to be verbose too.)
+    pub verbose: u32,
 }

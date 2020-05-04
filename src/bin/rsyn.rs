@@ -41,6 +41,10 @@ struct Opt {
     /// List files, don't copy them.
     #[structopt(long)]
     list_only: bool,
+
+    /// Be more verbose.
+    #[structopt(short = "v", parse(from_occurrences))]
+    verbose: u32,
 }
 
 impl Opt {
@@ -49,6 +53,7 @@ impl Opt {
         Options {
             recursive: self.recursive,
             list_only: self.list_only,
+            verbose: self.verbose,
         }
     }
 }

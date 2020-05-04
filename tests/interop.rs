@@ -88,6 +88,7 @@ fn list_symlink() -> rsyn::Result<()> {
     let options = Options {
         list_only: true,
         recursive: false,
+        ..Options::default()
     };
     let (flist, _stats) = Address::local(tmp.path()).list_files(options)?;
 
@@ -111,6 +112,7 @@ fn list_files_etc() -> Result<()> {
     let (_flist, _stats) = Address::local("/etc").list_files(Options {
         recursive: true,
         list_only: true,
+        ..Options::default()
     })?;
     Ok(())
 }
@@ -123,6 +125,7 @@ fn list_files_dev() -> Result<()> {
     let (_flist, _stats) = Address::local("/dev").list_files(Options {
         recursive: true,
         list_only: true,
+        ..Options::default()
     })?;
     Ok(())
 }

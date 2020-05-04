@@ -43,18 +43,22 @@ impl ReadVarint {
     pub fn read_i32(&mut self) -> io::Result<i32> {
         let mut buf = [0; 4];
         self.r.read_exact(&mut buf)?;
-        Ok(i32::from_le_bytes(buf))
+        let v = i32::from_le_bytes(buf);
+        debug!("Read {:#010x}", v);
+        Ok(v)
     }
 
     pub fn read_i64(&mut self) -> io::Result<i64> {
         let v = self.read_i32()?;
-        if v != -1 {
-            Ok(v as i64)
+        let v = if v != -1 {
+            v as i64
         } else {
             let mut buf = [0; 8];
             self.r.read_exact(&mut buf)?;
-            Ok(i64::from_le_bytes(buf))
-        }
+            i64::from_le_bytes(buf)
+        };
+        debug!("Read {:#020x}", v);
+        Ok(v)
     }
 
     /// Return the underlying stream, consuming this wrapper.
@@ -88,13 +92,13 @@ impl WriteVarint {
     }
 
     pub fn write_i32(&mut self, v: i32) -> io::Result<()> {
-        // debug!("send {:#x}", v);
+        debug!("Send {:#010x}", v);
         self.w.write_all(&v.to_le_bytes())
     }
 
     #[allow(unused)]
     pub fn write_u8(&mut self, v: u8) -> io::Result<()> {
-        // debug!("send {:#x}", v);
+        debug!("Send {:#04x}", v);
         self.w.write_all(&[v])
     }
 }

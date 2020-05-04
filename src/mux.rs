@@ -71,7 +71,7 @@ impl DemuxRead {
             if let Err(e) = self.r.read_exact(&mut h) {
                 match e.kind() {
                     io::ErrorKind::UnexpectedEof => {
-                        debug!("clean eof before mux packet");
+                        debug!("Clean eof before mux packet");
                         return Ok(0);
                     }
                     _ => return Err(e),
@@ -82,7 +82,7 @@ impl DemuxRead {
             let h = u32::from_le_bytes(h);
             let tag = (h >> 24) as u8;
             let len = (h & 0xff_ffff) as usize;
-            debug!("read envelope tag {:#02x} length {:#x}", tag, len);
+            debug!("Read envelope tag {:#04x} length {:#x}", tag, len);
             if tag == TAG_DATA {
                 if len == 0 {
                     return Err(io::Error::new(
@@ -142,7 +142,7 @@ impl Write for MuxWrite {
         self.w
             .write_all(buf)
             .expect("failed to write envelope body");
-        debug!("send envelope {}", hex::encode(buf));
+        debug!("Send envelope tag {:#x} data {}", l, hex::encode(buf));
         Ok(buf.len())
     }
 

@@ -74,12 +74,9 @@ fn main() -> Result<()> {
         .apply()
         .expect("Failed to configure logger");
 
-    let address: Address = opt.path.parse().expect("Failed to parse path");
-    let options = Options {
-        list_only: true,
-        ..opt.to_options()
-    };
-    let (file_list, _stats) = address.list_files(options)?;
+    let mut address: Address = opt.path.parse().expect("Failed to parse path");
+    *address.borrow_mut_options() = opt.to_options();
+    let (file_list, _stats) = address.list_files()?;
     for entry in file_list {
         println!("{}", &entry)
     }

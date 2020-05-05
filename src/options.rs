@@ -14,12 +14,10 @@
 
 //! Command-line options controlling the local and remote processes.
 
-use derive_builder::Builder;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-#[derive(Builder, Clone, Eq, PartialEq, Debug, Default)]
-#[builder(default)]
+#[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct Options {
     /// Recurse into directories.
     pub recursive: bool,

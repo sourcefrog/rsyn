@@ -63,6 +63,9 @@ pub struct Address {
     /// (See "USING RSYNC-DAEMON FEATURES VIA A REMOTE-SHELL CONNECTION" in the
     /// rsync manual.)
     daemon: Option<Daemon>,
+
+    /// Protocol / remote command line options.
+    options: Options,
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -89,6 +92,7 @@ impl Address {
             path: path.as_ref().as_os_str().into(),
             ssh: None,
             daemon: None,
+            options: Options::default(),
         }
     }
 
@@ -108,12 +112,27 @@ impl Address {
                 host: host.into(),
             }),
             daemon: None,
+            options: Options::default(),
         }
+    }
+
+    pub fn borrow_mut_options(&mut self) -> &mut Options {
+        &mut self.options
+    }
+
+    pub fn set_recursive(&mut self, recursive: bool) -> &mut Self {
+        self.options.recursive = recursive;
+        self
+    }
+
+    pub fn set_verbose(&mut self, verbose: u32) -> &mut Self {
+        self.options.verbose = verbose;
+        self
     }
 
     /// Builds the arguments to start a connection subcommand, including the
     /// command name.
-    fn build_args(&self, options: &Options) -> Vec<OsString> {
+    fn build_args(&self) -> Vec<OsString> {
         let mut v = Vec::<OsString>::new();
         let mut push_str = |s: &str| v.push(s.into());
         if let Some(ref ssh) = self.ssh {
@@ -129,17 +148,17 @@ impl Address {
         };
         push_str("--server");
         push_str("--sender");
-        if options.verbose > 0 {
+        if self.options.verbose > 0 {
             let mut o = "-".to_string();
-            for _ in 0..options.verbose {
+            for _ in 0..self.options.verbose {
                 o.push('v');
             }
             push_str(&o);
         }
-        if options.list_only {
+        if self.options.list_only {
             push_str("--list-only")
         }
-        if options.recursive {
+        if self.options.recursive {
             push_str("-r")
         }
         if self.path.is_empty() {
@@ -153,9 +172,10 @@ impl Address {
     /// List files from the remote server.
     ///
     /// This implicitly sets the `list_only` option.
-    pub fn list_files(&self, mut options: Options) -> Result<(FileList, ServerStatistics)> {
-        options.list_only = true;
-        self.connect(options)
+    pub fn list_files(&mut self) -> Result<(FileList, ServerStatistics)> {
+        // TODO: Permanently mutating the flag here is a bit messy.
+        self.options.list_only = true;
+        self.connect()
             .context("Failed to connect")?
             .list_files()
             .context("Failed to list files")
@@ -165,11 +185,11 @@ impl Address {
     ///
     /// The `Address` can be opened any number of times, but each `Connection`
     /// can only do a single operation.
-    pub fn connect(&self, options: Options) -> Result<Connection> {
+    fn connect(&self) -> Result<Connection> {
         if self.daemon.is_some() {
             todo!("daemon mode is not implemented yet");
         }
-        let mut args = self.build_args(&options);
+        let mut args = self.build_args();
         info!("Run connection command {:?}", &args);
         let mut command = Command::new(args.remove(0));
         command.args(args);
@@ -182,7 +202,7 @@ impl Address {
         let r = Box::new(child.stdout.take().expect("Child has no stdout"));
         let w = Box::new(child.stdin.take().expect("Child has no stdin"));
 
-        Connection::handshake(r, w, child, options)
+        Connection::handshake(r, w, child, self.options.clone())
     }
 }
 
@@ -226,6 +246,7 @@ impl FromStr for Address {
                 }),
                 path: caps["path"].into(),
                 ssh: None,
+                options: Options::default(),
             })
         } else if let Some(caps) = SFTP_RE.captures(s) {
             if caps.name("colon").is_some() {
@@ -237,6 +258,7 @@ impl FromStr for Address {
                         port: None,
                     }),
                     ssh: None,
+                    options: Options::default(),
                 })
             } else {
                 Ok(Address {
@@ -246,6 +268,7 @@ impl FromStr for Address {
                         host: caps["host"].into(),
                     }),
                     daemon: None,
+                    options: Options::default(),
                 })
             }
         } else {
@@ -254,6 +277,7 @@ impl FromStr for Address {
                 path: s.into(),
                 ssh: None,
                 daemon: None,
+                options: Options::default(),
             })
         }
     }
@@ -262,7 +286,6 @@ impl FromStr for Address {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::OptionsBuilder;
 
     #[test]
     fn parse_sftp_style_without_user() {
@@ -276,6 +299,7 @@ mod test {
                 }),
                 path: "/home/www".into(),
                 daemon: None,
+                options: Options::default(),
             }
         );
     }
@@ -292,6 +316,7 @@ mod test {
                 }),
                 path: "/home/www".into(),
                 daemon: None,
+                options: Options::default(),
             }
         );
     }
@@ -309,6 +334,7 @@ mod test {
                     user: None,
                     port: None,
                 }),
+                options: Options::default(),
             }
         );
     }
@@ -326,6 +352,7 @@ mod test {
                     user: Some("rsync".into()),
                     port: None,
                 }),
+                options: Options::default(),
             }
         );
     }
@@ -343,6 +370,7 @@ mod test {
                     user: None,
                     port: None,
                 }),
+                options: Options::default(),
             }
         );
     }
@@ -360,6 +388,7 @@ mod test {
                     user: Some("anon".into()),
                     port: None,
                 }),
+                options: Options::default(),
             }
         );
     }
@@ -378,6 +407,7 @@ mod test {
                     user: Some("anon".into()),
                     port: Some(8370),
                 }),
+                options: Options::default(),
             }
         );
     }
@@ -391,23 +421,22 @@ mod test {
                 path: "/usr/local/foo".into(),
                 ssh: None,
                 daemon: None,
+                options: Options::default(),
             }
         );
     }
 
     #[test]
     fn build_local_args() {
-        let args = Address::local("./src").build_args(&Options {
-            recursive: true,
-            ..Options::default()
-        });
+        let args = Address::local("./src").set_recursive(true).build_args();
         assert_eq!(args, vec!["rsync", "--server", "--sender", "-r", "./src"],);
     }
 
     #[test]
     fn build_local_args_verbose() {
-        let options = OptionsBuilder::default().verbose(3).build().unwrap();
-        let args = Address::local("./src").build_args(&options);
+        let mut address = Address::local("./src");
+        address.set_verbose(3);
+        let args = address.build_args();
         assert_eq!(args, vec!["rsync", "--server", "--sender", "-vvv", "./src"],);
     }
 
@@ -416,7 +445,8 @@ mod test {
         // Actually running SSH is a bit hard to test hermetically, but let's
         // at least check the command lines are plausible.
 
-        let args = Address::ssh(None, "samba.org", "/home/mbp").build_args(&Options::default());
+        let address = Address::ssh(None, "samba.org", "/home/mbp");
+        let args = address.build_args();
         assert_eq!(
             args,
             vec![
@@ -432,12 +462,13 @@ mod test {
 
     #[test]
     fn build_ssh_args_with_user() {
-        let options = OptionsBuilder::default()
-            .recursive(true)
-            .list_only(true)
-            .build()
-            .unwrap();
-        let args = Address::ssh(Some("mbp"), "samba.org", "/home/mbp").build_args(&options);
+        let mut address = Address::ssh(Some("mbp"), "samba.org", "/home/mbp");
+        {
+            let mut options = address.borrow_mut_options();
+            options.recursive = true;
+            options.list_only = true;
+        }
+        let args = address.build_args();
         assert_eq!(
             args,
             vec![
@@ -459,11 +490,9 @@ mod test {
     /// directory.
     #[test]
     fn build_ssh_args_for_default_directory() {
-        let address: Address = "example-host:".parse().unwrap();
-        let args = address.build_args(&Options {
-            list_only: true,
-            ..Options::default()
-        });
+        let mut address: Address = "example-host:".parse().unwrap();
+        address.borrow_mut_options().list_only = true;
+        let args = address.build_args();
         assert_eq!(
             args,
             vec![
@@ -483,6 +512,6 @@ mod test {
     #[should_panic]
     fn daemon_connection_unimplemented() {
         let address: Address = "rsync.example.com::example".parse().unwrap();
-        let _ = address.connect(Options::default());
+        let _ = address.connect();
     }
 }

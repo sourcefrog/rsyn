@@ -43,8 +43,8 @@ pub struct Connection {
     rv: ReadVarint,
     wv: WriteVarint,
 
-    #[allow(unused)]
-    server_version: i32,
+    /// Mutually-agreed rsync protocol version number.
+    protocol_version: i32,
 
     #[allow(unused)]
     salt: i32,
@@ -70,9 +70,9 @@ impl Connection {
         let mut rv = ReadVarint::new(r);
 
         wv.write_i32(MY_PROTOCOL_VERSION)?;
-        let server_version = rv.read_i32().unwrap();
-        if server_version < MY_PROTOCOL_VERSION {
-            bail!("server protocol version {} is too old", server_version);
+        let protocol_version = rv.read_i32().unwrap();
+        if protocol_version < MY_PROTOCOL_VERSION {
+            bail!("server protocol version {} is too old", protocol_version);
         }
         // The server and client agree to use the minimum supported version, which will now be
         // ours.
@@ -80,7 +80,7 @@ impl Connection {
         let salt = rv.read_i32().unwrap();
         debug!(
             "connected to server version {}, salt {:#x}",
-            server_version, salt
+            protocol_version, salt
         );
 
         // Server-to-client is multiplexed; client-to-server is not.
@@ -91,7 +91,7 @@ impl Connection {
         Ok(Connection {
             rv,
             wv,
-            server_version,
+            protocol_version,
             salt,
             child,
             options,
@@ -109,13 +109,14 @@ impl Connection {
         // TODO: With -o, get uid list.
         // TODO: With -g, get gid list.
 
-        // TODO: Only if protocol <30?
-        let io_error_count = self
-            .rv
-            .read_i32()
-            .context("Failed to read server error count")?;
-        if io_error_count > 0 {
-            warn!("Server reports {} IO errors", io_error_count);
+        if self.protocol_version < 30 {
+            let io_error_count = self
+                .rv
+                .read_i32()
+                .context("Failed to read server error count")?;
+            if io_error_count > 0 {
+                warn!("Server reports {} IO errors", io_error_count);
+            }
         }
 
         // Request no files.
@@ -177,7 +178,7 @@ impl Connection {
         let Connection {
             rv,
             wv,
-            server_version: _,
+            protocol_version: _,
             salt: _,
             mut child,
             options: _,
@@ -188,8 +189,9 @@ impl Connection {
 
         // TODO: Should this be returned, somehow?
         // TODO: Should we timeout after a while?
+        // TODO: Map rsync return codes to messages.
         let child_result = child.wait()?;
-        info!("child process exited with status {}", child_result);
+        info!("Child process exited with status {}", child_result);
 
         Ok(())
     }

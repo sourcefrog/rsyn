@@ -40,17 +40,17 @@ const RSYNC_COMMAND: &str = "rsync";
 /// Addresses can be parsed from strings:
 /// ```
 /// use std::str::FromStr;
-/// let address = rsyn::Address::from_str("rsync.example.com::module")
+/// let address = rsyn::Client::from_str("rsync.example.com::module")
 ///     .expect("Parse failed");
 /// ```
 ///
 /// Or constructed:
 /// ```
-/// let address = rsyn::Address::local("./src");
-/// let address = rsyn::Address::ssh(Some("user"), "host.example.com", "./src");
+/// let address = rsyn::Client::local("./src");
+/// let address = rsyn::Client::ssh(Some("user"), "host.example.com", "./src");
 /// ```
 #[derive(Eq, PartialEq, Clone, Debug)]
-pub struct Address {
+pub struct Client {
     /// Root path to pass to the server.
     path: OsString,
 
@@ -82,13 +82,13 @@ struct Ssh {
     host: String,
 }
 
-impl Address {
-    /// Builds an Address that, when connected, starts an `rsync --server` subprocess
+impl Client {
+    /// Builds an Client that, when connected, starts an `rsync --server` subprocess
     /// on the local machine.
     ///
     /// This is primarily useful for testing.
-    pub fn local<P: AsRef<Path>>(path: P) -> Address {
-        Address {
+    pub fn local<P: AsRef<Path>>(path: P) -> Client {
+        Client {
             path: path.as_ref().as_os_str().into(),
             ssh: None,
             daemon: None,
@@ -104,8 +104,8 @@ impl Address {
     /// local user, has effect.
     ///
     /// `path` is the path on the remote host to address.
-    pub fn ssh(user: Option<&str>, host: &str, path: &str) -> Address {
-        Address {
+    pub fn ssh(user: Option<&str>, host: &str, path: &str) -> Client {
+        Client {
             path: path.into(),
             ssh: Some(Ssh {
                 user: user.map(String::from),
@@ -183,7 +183,7 @@ impl Address {
 
     /// Opens a connection to this address.
     ///
-    /// The `Address` can be opened any number of times, but each `Connection`
+    /// The `Client` can be opened any number of times, but each `Connection`
     /// can only do a single operation.
     fn connect(&self) -> Result<Connection> {
         if self.daemon.is_some() {
@@ -209,9 +209,9 @@ impl Address {
 #[derive(Debug)]
 pub struct ParseAddressError {}
 
-/// Builds an Address by matching the URL and SFTP-like formats used by
+/// Builds an Client by matching the URL and SFTP-like formats used by
 /// rsync.
-impl FromStr for Address {
+impl FromStr for Client {
     type Err = ParseAddressError;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
@@ -238,7 +238,7 @@ impl FromStr for Address {
             .unwrap();
         }
         if let Some(caps) = URL_RE.captures(s) {
-            Ok(Address {
+            Ok(Client {
                 daemon: Some(Daemon {
                     host: caps["host"].into(),
                     user: caps.name("user").map(|m| m.as_str().to_string()),
@@ -250,7 +250,7 @@ impl FromStr for Address {
             })
         } else if let Some(caps) = SFTP_RE.captures(s) {
             if caps.name("colon").is_some() {
-                Ok(Address {
+                Ok(Client {
                     path: caps["path"].into(),
                     daemon: Some(Daemon {
                         user: caps.name("user").map(|m| m.as_str().to_string()),
@@ -261,7 +261,7 @@ impl FromStr for Address {
                     options: Options::default(),
                 })
             } else {
-                Ok(Address {
+                Ok(Client {
                     path: caps["path"].into(),
                     ssh: Some(Ssh {
                         user: caps.name("user").map(|m| m.as_str().to_string()),
@@ -273,7 +273,7 @@ impl FromStr for Address {
             }
         } else {
             // Assume it's just a path.
-            Ok(Address {
+            Ok(Client {
                 path: s.into(),
                 ssh: None,
                 daemon: None,
@@ -289,10 +289,10 @@ mod test {
 
     #[test]
     fn parse_sftp_style_without_user() {
-        let address = Address::from_str("bilbo:/home/www").unwrap();
+        let address = Client::from_str("bilbo:/home/www").unwrap();
         assert_eq!(
             address,
-            Address {
+            Client {
                 ssh: Some(Ssh {
                     user: None,
                     host: "bilbo".into(),
@@ -306,10 +306,10 @@ mod test {
 
     #[test]
     fn parse_sftp_style_with_user() {
-        let address = Address::from_str("mbp@bilbo:/home/www").unwrap();
+        let address = Client::from_str("mbp@bilbo:/home/www").unwrap();
         assert_eq!(
             address,
-            Address {
+            Client {
                 ssh: Some(Ssh {
                     user: Some("mbp".to_string()),
                     host: "bilbo".to_string(),
@@ -323,10 +323,10 @@ mod test {
 
     #[test]
     fn parse_daemon_simple() {
-        let address = Address::from_str("rsync.samba.org::foo").unwrap();
+        let address = Client::from_str("rsync.samba.org::foo").unwrap();
         assert_eq!(
             address,
-            Address {
+            Client {
                 path: "foo".into(),
                 ssh: None,
                 daemon: Some(Daemon {
@@ -341,10 +341,10 @@ mod test {
 
     #[test]
     fn parse_daemon_with_user() {
-        let address = Address::from_str("rsync@rsync.samba.org::meat/bread/wine").unwrap();
+        let address = Client::from_str("rsync@rsync.samba.org::meat/bread/wine").unwrap();
         assert_eq!(
             address,
-            Address {
+            Client {
                 path: "meat/bread/wine".into(),
                 ssh: None,
                 daemon: Some(Daemon {
@@ -359,10 +359,10 @@ mod test {
 
     #[test]
     fn parse_rsync_url() {
-        let address = Address::from_str("rsync://rsync.samba.org/foo").unwrap();
+        let address = Client::from_str("rsync://rsync.samba.org/foo").unwrap();
         assert_eq!(
             address,
-            Address {
+            Client {
                 path: "foo".into(),
                 ssh: None,
                 daemon: Some(Daemon {
@@ -377,10 +377,10 @@ mod test {
 
     #[test]
     fn parse_rsync_url_with_username() {
-        let address = Address::from_str("rsync://anon@rsync.samba.org/foo").unwrap();
+        let address = Client::from_str("rsync://anon@rsync.samba.org/foo").unwrap();
         assert_eq!(
             address,
-            Address {
+            Client {
                 path: "foo".into(),
                 ssh: None,
                 daemon: Some(Daemon {
@@ -396,10 +396,10 @@ mod test {
     #[test]
     fn parse_rsync_url_with_username_and_port() {
         let address =
-            Address::from_str("rsync://anon@rsync.samba.org:8370/alpha/beta/gamma").unwrap();
+            Client::from_str("rsync://anon@rsync.samba.org:8370/alpha/beta/gamma").unwrap();
         assert_eq!(
             address,
-            Address {
+            Client {
                 path: "alpha/beta/gamma".into(),
                 ssh: None,
                 daemon: Some(Daemon {
@@ -414,10 +414,10 @@ mod test {
 
     #[test]
     fn parse_simple_path() {
-        let address = Address::from_str("/usr/local/foo").unwrap();
+        let address = Client::from_str("/usr/local/foo").unwrap();
         assert_eq!(
             address,
-            Address {
+            Client {
                 path: "/usr/local/foo".into(),
                 ssh: None,
                 daemon: None,
@@ -428,13 +428,13 @@ mod test {
 
     #[test]
     fn build_local_args() {
-        let args = Address::local("./src").set_recursive(true).build_args();
+        let args = Client::local("./src").set_recursive(true).build_args();
         assert_eq!(args, vec!["rsync", "--server", "--sender", "-r", "./src"],);
     }
 
     #[test]
     fn build_local_args_verbose() {
-        let mut address = Address::local("./src");
+        let mut address = Client::local("./src");
         address.set_verbose(3);
         let args = address.build_args();
         assert_eq!(args, vec!["rsync", "--server", "--sender", "-vvv", "./src"],);
@@ -445,7 +445,7 @@ mod test {
         // Actually running SSH is a bit hard to test hermetically, but let's
         // at least check the command lines are plausible.
 
-        let address = Address::ssh(None, "samba.org", "/home/mbp");
+        let address = Client::ssh(None, "samba.org", "/home/mbp");
         let args = address.build_args();
         assert_eq!(
             args,
@@ -462,7 +462,7 @@ mod test {
 
     #[test]
     fn build_ssh_args_with_user() {
-        let mut address = Address::ssh(Some("mbp"), "samba.org", "/home/mbp");
+        let mut address = Client::ssh(Some("mbp"), "samba.org", "/home/mbp");
         {
             let mut options = address.borrow_mut_options();
             options.recursive = true;
@@ -490,7 +490,7 @@ mod test {
     /// directory.
     #[test]
     fn build_ssh_args_for_default_directory() {
-        let mut address: Address = "example-host:".parse().unwrap();
+        let mut address: Client = "example-host:".parse().unwrap();
         address.borrow_mut_options().list_only = true;
         let args = address.build_args();
         assert_eq!(
@@ -511,7 +511,7 @@ mod test {
     #[test]
     #[should_panic]
     fn daemon_connection_unimplemented() {
-        let address: Address = "rsync.example.com::example".parse().unwrap();
+        let address: Client = "rsync.example.com::example".parse().unwrap();
         let _ = address.connect();
     }
 }

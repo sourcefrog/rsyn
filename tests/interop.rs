@@ -20,7 +20,7 @@ use anyhow::Result;
 use chrono::prelude::*;
 use tempdir::TempDir;
 
-use rsyn::Address;
+use rsyn::Client;
 
 /// List files from a newly-created temporary directory.
 #[test]
@@ -33,9 +33,9 @@ fn list_files() {
     create_dir(tmp.path().join("subdir")).unwrap();
     File::create(tmp.path().join("subdir").join("galah")).unwrap();
 
-    let mut address = Address::local(tmp.path());
-    address.set_recursive(true);
-    let (flist, stats) = address.list_files().unwrap();
+    let mut client = Client::local(tmp.path());
+    client.set_recursive(true);
+    let (flist, stats) = client.list_files().unwrap();
 
     assert_eq!(flist.len(), 5);
     let names: Vec<String> = flist
@@ -82,7 +82,7 @@ fn list_symlink() -> rsyn::Result<()> {
     let tmp = TempDir::new("rsyn_interop_list_symlink")?;
     std::os::unix::fs::symlink("dangling link", tmp.path().join("a link"))?;
 
-    let (flist, _stats) = Address::local(tmp.path()).list_files()?;
+    let (flist, _stats) = Client::local(tmp.path()).list_files()?;
 
     assert_eq!(flist.len(), 2);
     assert_eq!(flist[0].name_lossy_string(), ".");
@@ -101,7 +101,7 @@ fn list_symlink() -> rsyn::Result<()> {
 #[test]
 fn list_files_etc() -> Result<()> {
     install_test_logger();
-    let (_flist, _stats) = Address::local("/etc").set_recursive(true).list_files()?;
+    let (_flist, _stats) = Client::local("/etc").set_recursive(true).list_files()?;
     Ok(())
 }
 
@@ -110,9 +110,9 @@ fn list_files_etc() -> Result<()> {
 #[test]
 fn list_files_dev() -> Result<()> {
     install_test_logger();
-    let mut address = Address::local("/dev");
-    address.set_recursive(true);
-    let (_flist, _stats) = address.list_files()?;
+    let mut client = Client::local("/dev");
+    client.set_recursive(true);
+    let (_flist, _stats) = client.list_files()?;
     Ok(())
 }
 

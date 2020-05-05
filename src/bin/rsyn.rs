@@ -18,7 +18,7 @@
 use log::{debug, error, info, trace, warn};
 use structopt::StructOpt;
 
-use rsyn::{Address, Options, Result};
+use rsyn::{Client, Options, Result};
 
 #[derive(Debug, StructOpt)]
 #[structopt()]
@@ -74,9 +74,9 @@ fn main() -> Result<()> {
         .apply()
         .expect("Failed to configure logger");
 
-    let mut address: Address = opt.path.parse().expect("Failed to parse path");
-    *address.borrow_mut_options() = opt.to_options();
-    let (file_list, _stats) = address.list_files()?;
+    let mut client: Client = opt.path.parse().expect("Failed to parse path");
+    *client.borrow_mut_options() = opt.to_options();
+    let (file_list, _stats) = client.list_files()?;
     for entry in file_list {
         println!("{}", &entry)
     }

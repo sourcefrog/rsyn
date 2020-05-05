@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use rsyn::Address;
+use rsyn::Client;
 
 /// Check that we're not counting on the side effects of any logging.
 ///
@@ -23,7 +23,7 @@ use rsyn::Address;
 fn list_files_with_no_logger() {
     // TODO: Assertions about the contents.
     // TODO: Assert that there is, in fact, no logger.
-    Address::local("./src")
+    Client::local("./src")
         .list_files()
         .expect("Failed to list files");
 }

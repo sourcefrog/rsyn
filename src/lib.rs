@@ -14,14 +14,14 @@
 
 //! A wire-compatible rsync client in Rust.
 //!
-//! Use the [`Address`](struct.Address.html) type to list or transfer files:
+//! Use the [`Client`](struct.Client.html) type to list or transfer files:
 //!
 //! ```
 //! // Open a connection to a local rsync server, and list the source directory.
-//! use rsyn::{Address, Options};
-//! let mut address = Address::local("./src");
-//! address.set_recursive(true);
-//! let (flist, _stats) = address.list_files()?;
+//! use rsyn::{Client, Options};
+//! let mut client = Client::local("./src");
+//! client.set_recursive(true);
+//! let (flist, _stats) = client.list_files()?;
 //!
 //! // We can see the `lib.rs` in the listing.
 //! assert!(flist.iter().any(|fe|
@@ -29,7 +29,7 @@
 //! # rsyn::Result::Ok(())
 //! ```
 
-mod address;
+mod client;
 mod connection;
 mod flist;
 pub mod logging;
@@ -38,7 +38,7 @@ mod options;
 mod statistics;
 mod varint;
 
-pub use address::Address;
+pub use client::Client;
 pub use connection::Connection;
 pub use flist::{FileEntry, FileList};
 pub use options::Options;

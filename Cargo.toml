@@ -34,3 +34,6 @@ path = "unix_mode"
 
 [dev-dependencies]
 tempdir = "0.3.7"
+
+[workspace]
+

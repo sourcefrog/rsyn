@@ -27,7 +27,8 @@ use lazy_static::lazy_static;
 use log::{debug, error, info, trace, warn};
 use regex::Regex;
 
-use crate::{Connection, FileList, Options, Result, ServerStatistics};
+use crate::connection::Connection;
+use crate::{FileList, Options, Result, ServerStatistics};
 
 /// SSH command name, to start it as a subprocess.
 const SSH_COMMAND: &str = "ssh";

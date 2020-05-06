@@ -39,7 +39,7 @@ const MY_PROTOCOL_VERSION: i32 = 27;
 ///
 /// Due to the protocol definition, only one transfer (list, send, or receive)
 /// can be done per connection.
-pub struct Connection {
+pub(crate) struct Connection {
     rv: ReadVarint,
     wv: WriteVarint,
 

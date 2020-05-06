@@ -39,7 +39,6 @@ mod statistics;
 mod varint;
 
 pub use client::Client;
-pub use connection::Connection;
 pub use flist::{FileEntry, FileList};
 pub use options::Options;
 pub use statistics::ServerStatistics;

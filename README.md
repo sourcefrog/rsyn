@@ -3,13 +3,16 @@
 `rsyn` reimplements part of the rsync network protocol in pure Rust. (It's
 "rsync with no C.")
 
+rsyn supports protocol version 27, which is supported by rsync versions from
+2004 and later, and by openrsync.
+
 ## Install
 
 1. Install Rust from <https://rustup.rs/> or elsewhere.
 
 2. In the rsyn source tree, run
 
-   cargo install --release
+   cargo install --path .
 
 To run the interoperability tests (with `cargo test`) you'll need a copy of
 rsync installed.
@@ -30,7 +33,7 @@ Intended next steps are:
 
 - [x] List a directory over SSH.
 
-- [ ] Copy a directory from rsync into an empty local directory.
+- [ ] Copy a directory from rsync over SSH into an empty local directory.
 
 - [ ] Copy a directory from rsync into a local directory, skipping already
       up-to-date files, but downloading the full content of missing or
@@ -42,6 +45,10 @@ Intended next steps are:
 
 - [ ] Support incremental rolling-sum and checksum file transfers: the actual
       "rsync algorithm".
+
+- [ ] Support the commonly-used `-a` option.
+
+- [ ] Upload a directory to rsync over SSH.
 
 Below this point the ordering is less certain but some options are:
 
@@ -73,16 +80,15 @@ do better.
 ## Goals
 
 - rsyn will interoperate with recent versions of upstream "tridge" rsync, over
-  (first) rsync+ssh or (later) `rsync://`. Specifically, it supports protocol
-  version 27, the same as openrsync, and supported by rsync from 2004 through
-  (at least) 2020.
+  (first) rsync+ssh or (later) `rsync://`.
 
 - rsyn will support commonly-used rsync options and scenarios. The most
   important are to transfer files recursively, with mtimes and permissions, with
   exclusion patterns.
 
 - rsyn will offer a clean public library Rust API through which transfers can be
-  initiated and observed in-process. As is usual
+  initiated and observed in-process. As is usual for Rust libraries, the API
+  is not guaranteed to be stable before 1.0.
 
 - Every command line option in rsyn should have the same meaning as in rsync.
 
@@ -143,11 +149,9 @@ do better.
   which is not advisable today. This can't be unilaterally changed by rsyn while
   keeping compatibility.
 
-  For sensitive data or writable directories, I'd strongly recommend running
-  rsync over SSH than relying on its own authentication mechanism.
-
-- rsyn need not behave exactly identically to rsync in, for example, the order
-  files are processed or how the wire protocol is used.
+  For sensitive data or writable directories, or really any traffic over
+  less-than-fully-trusted networks, I'd strongly recommend running rsync over
+  SSH.
 
 - rsyn need not generate exactly identical text/log output.
 

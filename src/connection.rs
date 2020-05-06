@@ -31,7 +31,7 @@ use crate::mux::DemuxRead;
 use crate::varint::{ReadVarint, WriteVarint};
 use crate::{Options, ServerStatistics};
 
-const MY_PROTOCOL_VERSION: i32 = 29;
+const MY_PROTOCOL_VERSION: i32 = 27;
 
 /// Connection to an rsync server.
 ///
@@ -107,6 +107,10 @@ impl Connection {
     /// The file list is in the sorted order defined by the protocol, which
     /// is strcmp on the raw bytes of the names.
     pub(crate) fn list_files(mut self) -> Result<(FileList, ServerStatistics)> {
+        // Analogous to rsync/receiver.c recv_files().
+        // let max_phase = if self.protocol_version >= 29 { 2 } else { 1 };
+        let max_phase = 2;
+
         // send exclusion list length of 0
         self.send_exclusions()?;
         let file_list = read_file_list(&mut self.rv)?;
@@ -119,57 +123,50 @@ impl Connection {
                 .read_i32()
                 .context("Failed to read server error count")?;
             if io_error_count > 0 {
+                // TODO: Somehow make this, and other soft errors, observable to the API client.
                 warn!("Server reports {} IO errors", io_error_count);
             }
         }
 
-        // Request no files.
-        debug!("send end of phase 1");
-        self.wv
-            .write_i32(-1)
-            .context("Failed to send phase 1 transition")?; // end of phase 1
+        let mut phase = 0;
+        loop {
+            phase += 1;
+            if phase > max_phase {
+                break;
+            }
 
-        // Server stops here if there were no files.
-        if file_list.is_empty() {
-            info!("Server returned no files, so we're done");
-            self.shutdown()?;
-            return Ok((file_list, ServerStatistics::default()));
+            debug!("Start phase {}", phase);
+
+            self.wv
+                .write_i32(-1)
+                .context("Failed to send phase transition")?; // end of phase 1
+
+            // Server stops here if there were no files.
+            if file_list.is_empty() {
+                info!("Server returned no files, so we're done");
+                self.shutdown()?;
+                return Ok((file_list, ServerStatistics::default()));
+            }
+
+            assert_eq!(
+                self.rv
+                    .read_i32()
+                    .context("Failed to read phase transition")?,
+                -1
+            );
         }
 
-        assert_eq!(
-            self.rv
-                .read_i32()
-                .context("Failed to read phase 1 transition")?,
-            -1
-        );
-        debug!("send end of phase 2");
-        self.wv
-            .write_i32(-1)
-            .context("Failed to send phase 2 transition")?; // end of phase 2
-        assert_eq!(
-            self.rv
-                .read_i32()
-                .context("Failed to read phase 2 transtion")?,
-            -1
-        );
         debug!("send end of sequence");
         self.wv
             .write_i32(-1)
-            .context("Failed to send end-of-sequence marker")?; // end-of-sequence marker
-        assert_eq!(
-            self.rv
-                .read_i32()
-                .context("Failed to read end-of-sequence marker")?,
-            -1
-        );
-        let server_stats =
-            ServerStatistics::read(&mut self.rv).context("Failed to read server statistics")?;
+            .context("Failed to send end-of-sequence marker")?;
+        // TODO: In later versions (which?) read an end-of-sequence marker?
+        let server_stats = self
+            .read_server_statistics()
+            .context("Failed to read server statistics")?;
         info!("server statistics: {:#?}", server_stats);
 
-        // one more end?
-        self.wv
-            .write_i32(-1)
-            .context("Failed to send final marker")?;
+        // TODO: In later versions, send a final -1 marker.
         self.shutdown()?;
         Ok((file_list, server_stats))
     }
@@ -204,5 +201,23 @@ impl Connection {
         self.wv
             .write_i32(0)
             .context("Failed to send exclusion list")
+    }
+
+    fn read_server_statistics(&mut self) -> Result<ServerStatistics> {
+        Ok(ServerStatistics {
+            total_bytes_read: self.rv.read_i64()?,
+            total_bytes_written: self.rv.read_i64()?,
+            total_file_size: self.rv.read_i64()?,
+            flist_build_time: if self.protocol_version >= 29 {
+                Some(self.rv.read_i64()?)
+            } else {
+                None
+            },
+            flist_xfer_time: if self.protocol_version >= 29 {
+                Some(self.rv.read_i64()?)
+            } else {
+                None
+            },
+        })
     }
 }

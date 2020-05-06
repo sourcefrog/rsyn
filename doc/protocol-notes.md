@@ -1,5 +1,14 @@
 # rsync protocol notes
 
+## rsync (C) structure
+
+Older rsync code, with fewer features, is easier to follow.
+
+rsyn is trying to support protocol 27, from 2004, the same as openrsync.
+
+The receiver process forks off a child (in `do_recv`) where the child receives
+the files (in `recv_files`) and the parent generates (in `generate_files`.)
+
 ## Protocol negotiation
 
 Protocol version is selected (in `exchange_version` and `setup_protocol`) as

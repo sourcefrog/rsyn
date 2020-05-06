@@ -44,7 +44,7 @@ impl ReadVarint {
         let mut buf = [0; 4];
         self.r.read_exact(&mut buf)?;
         let v = i32::from_le_bytes(buf);
-        debug!("Read {:#010x}", v);
+        // debug!("Read {:#010x}", v);
         Ok(v)
     }
 
@@ -57,7 +57,7 @@ impl ReadVarint {
             self.r.read_exact(&mut buf)?;
             i64::from_le_bytes(buf)
         };
-        debug!("Read {:#020x}", v);
+        // debug!("Read {:#020x}", v);
         Ok(v)
     }
 
@@ -92,13 +92,13 @@ impl WriteVarint {
     }
 
     pub fn write_i32(&mut self, v: i32) -> io::Result<()> {
-        debug!("Send {:#010x}", v);
+        // debug!("Send {:#010x}", v);
         self.w.write_all(&v.to_le_bytes())
     }
 
     #[allow(unused)]
     pub fn write_u8(&mut self, v: u8) -> io::Result<()> {
-        debug!("Send {:#04x}", v);
+        // debug!("Send {:#04x}", v);
         self.w.write_all(&[v])
     }
 }

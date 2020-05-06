@@ -73,7 +73,9 @@ do better.
 ## Goals
 
 - rsyn will interoperate with recent versions of upstream "tridge" rsync, over
-  (first) rsync+ssh or (later) `rsync://`.
+  (first) rsync+ssh or (later) `rsync://`. Specifically, it supports protocol
+  version 27, the same as openrsync, and supported by rsync from 2004 through
+  (at least) 2020.
 
 - rsyn will support commonly-used rsync options and scenarios. The most
   important are to transfer files recursively, with mtimes and permissions, with

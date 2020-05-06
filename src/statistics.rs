@@ -14,12 +14,6 @@
 
 //! Statistics/counter structs.
 
-// rsyn: wire-compatible rsync reimplementation in Rust.
-
-use std::io;
-
-use crate::varint::ReadVarint;
-
 /// Statistics from a remote server about how much work it did.
 #[derive(Debug, Default)]
 pub struct ServerStatistics {
@@ -34,24 +28,9 @@ pub struct ServerStatistics {
     /// symlinks.
     pub total_file_size: i64,
     /// The number of seconds spent by the server building a file list.
-    pub flist_build_time: i64,
+    pub flist_build_time: Option<i64>,
     /// The number of seconds the server spent sending the file list to the
     /// client.
-    pub flist_xfer_time: i64,
+    pub flist_xfer_time: Option<i64>,
     // TODO: More fields in at least some protocol versions.
-}
-
-impl ServerStatistics {
-    pub(crate) fn read(rv: &mut ReadVarint) -> io::Result<ServerStatistics> {
-        // TODO: Perhaps this should be part of the Connection, or some place
-        // that knows the protocol version.
-        Ok(ServerStatistics {
-            total_bytes_read: rv.read_i64()?,
-            total_bytes_written: rv.read_i64()?,
-            total_file_size: rv.read_i64()?,
-            // TODO: These last two are only set for protocol >=29.
-            flist_build_time: rv.read_i64()?,
-            flist_xfer_time: rv.read_i64()?,
-        })
-    }
 }

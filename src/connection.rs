@@ -58,8 +58,7 @@ pub struct Connection {
 impl Connection {
     /// Start a new connection, by doing the rsync handshake protocol.
     ///
-    ///
-    /// Most users should call `Address::connect` instead.
+    /// The public interface is through `Client`.
     pub(crate) fn handshake(
         r: Box<dyn Read>,
         w: Box<dyn Write>,
@@ -70,9 +69,12 @@ impl Connection {
         let mut rv = ReadVarint::new(r);
 
         wv.write_i32(MY_PROTOCOL_VERSION)?;
-        let protocol_version = rv.read_i32().unwrap();
-        if protocol_version < MY_PROTOCOL_VERSION {
-            bail!("server protocol version {} is too old", protocol_version);
+        let remote_protocol_version = rv.read_i32().unwrap();
+        if remote_protocol_version < MY_PROTOCOL_VERSION {
+            bail!(
+                "server protocol version {} is too old",
+                remote_protocol_version
+            );
         }
         // The server and client agree to use the minimum supported version, which will now be
         // ours.
@@ -80,8 +82,10 @@ impl Connection {
         let salt = rv.read_i32().unwrap();
         debug!(
             "connected to server version {}, salt {:#x}",
-            protocol_version, salt
+            remote_protocol_version, salt
         );
+        let protocol_version = std::cmp::min(MY_PROTOCOL_VERSION, remote_protocol_version);
+        info!("Agreed protocol version {}", protocol_version);
 
         // Server-to-client is multiplexed; client-to-server is not.
         // Pull back the underlying stream and wrap it in a demuxed varint

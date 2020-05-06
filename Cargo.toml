@@ -10,6 +10,8 @@ license = "Apache-2.0"
 name = "rsyn"
 publish = false
 version = "0.1.0"
+repository = "https://github.com/sourcefrog/rsyn"
+homepage = "https://github.com/sourcefrog/rsyn/blob/master/README.md"
 
 [dependencies]
 anyhow = "1.0.28"

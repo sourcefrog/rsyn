@@ -1,5 +1,8 @@
 # Wire-compatible rsync client in Rust
 
+[![crates.io](https://img.shields.io/crates/v/rsyn.svg)](https://crates.io/crates/rsyn)
+[![docs.rs](https://docs.rs/rsyn/badge.svg)](https://docs.rs/rsyn)
+
 `rsyn` reimplements part of the rsync network protocol in pure Rust. (It's
 "rsync with no C.")
 

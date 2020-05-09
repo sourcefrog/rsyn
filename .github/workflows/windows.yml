@@ -11,3 +11,5 @@ jobs:
     - uses: actions/checkout@v2
     - name: Run tests
       run: cargo test --verbose
+      env:
+        RUST_TRACEBACK: 1

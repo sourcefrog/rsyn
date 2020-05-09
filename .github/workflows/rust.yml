@@ -17,7 +17,7 @@ jobs:
       run: choco install rsync
     - uses: actions/checkout@v2
     - name: Build
-      run: cargo build --all --verbose
+      run: cargo build --all --verbose --all-targets
     - name: Unit tests
       run: cargo test --lib --bins
     - name: Integration tests

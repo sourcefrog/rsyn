@@ -16,7 +16,9 @@ rsyn supports protocol version 27, which is supported by rsync versions from
 
 2. In the rsyn source tree, run
 
+   ```shell
    cargo install --path .
+   ```
 
 To run the interoperability tests (with `cargo test`) you'll need a copy of
 rsync installed.

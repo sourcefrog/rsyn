@@ -8,7 +8,7 @@
 "rsync with no C.")
 
 rsyn supports protocol version 27, which is supported by rsync versions from
-2004 and later, and by openrsync.
+2.6.0 (released in 2004) onwards, and by openrsync.
 
 ## Install
 
@@ -93,8 +93,8 @@ do better.
   exclusion patterns.
 
 - rsyn will offer a clean public library Rust API through which transfers can be
-  initiated and observed in-process. As is usual for Rust libraries, the API
-  is not guaranteed to be stable before 1.0.
+  initiated and observed in-process. As is usual for Rust libraries, the API is
+  not guaranteed to be stable before 1.0.
 
 - Every command line option in rsyn should have the same meaning as in rsync.
 

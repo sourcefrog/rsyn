@@ -1,16 +1,13 @@
-name: rust
+name: unix
 
 on: [push, pull_request]
 
 jobs:
   build:
-
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        # TODO: Add windows-latest once we know how to install rsync there, or once interop tests are optional.
-    
     steps:
     - uses: actions/checkout@v2
     - name: Build

@@ -108,6 +108,7 @@ impl FileEntry {
 /// drwxr-x---         420 2020-05-02 07:25:17 rsyn
 /// ```
 ///
+/// The modification time is shown in the local timezone.
 impl fmt::Display for FileEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -200,6 +201,7 @@ pub(crate) fn read_file_list(r: &mut ReadVarint) -> Result<FileList> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use regex::Regex;
 
     #[test]
     fn file_entry_display_like_ls() {
@@ -209,9 +211,20 @@ mod test {
             mtime: 1588429517,
             name: b"rsyn".to_vec(),
         };
-        assert_eq!(
-            format!("{}", entry),
-            "drwxr-x---         420 2020-05-02 07:25:17 rsyn"
+        // The mtime is in the local timezone, and we need the tests to pass
+        // regardless of timezone. Rust Chrono doesn't seem to provide a way
+        // to override it for testing. Let's just assert that the pattern is
+        // plausible.
+        //
+        // This does assume there are no timezones with a less-than-whole minute
+        // offset. (There are places like South Australia with a fractional-hour offset.
+        let entry_display = format!("{}", entry);
+        assert!(
+            Regex::new(r"drwxr-x---         420 2020-05-0[123] \d\d:\d\d:17 rsyn")
+                .unwrap()
+                .is_match(&entry_display),
+            "{:?} doesn't match expected format",
+            entry_display
         );
     }
 }

@@ -1,0 +1,21 @@
+name: test
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+    - name: Install rsync from Chocolatey
+      if: startsWith(${{ matrix.os }}, "windows")
+      run: choco install rsync
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --all --verbose
+    - name: Test
+      run: cargo test --verbose
+      env:
+        RUST_TRACEBACK: 1

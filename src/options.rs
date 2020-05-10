@@ -24,7 +24,7 @@ pub struct Options {
 
     /// Command to run to start the rsync server, typically remotely.
     /// If unset, just "rsync".
-    pub rsync_path: Option<String>,
+    pub rsync_command: Option<String>,
 
     /// Command to open a connection to the remote server.
     ///

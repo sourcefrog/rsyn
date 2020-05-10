@@ -64,7 +64,7 @@ impl Opt {
             recursive: self.recursive,
             list_only: self.list_only,
             verbose: self.verbose,
-            rsync_path: self.rsync_path.clone(),
+            rsync_command: self.rsync_path.clone(),
             ssh_command: self.rsh.clone(),
         }
     }

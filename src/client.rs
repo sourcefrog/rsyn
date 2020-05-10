@@ -131,8 +131,8 @@ impl Client {
         self
     }
 
-    pub fn set_rsync_path(&mut self, rsync_path: Option<String>) -> &mut Self {
-        self.options.rsync_path = rsync_path;
+    pub fn set_rsync_command(&mut self, rsync_command: Option<String>) -> &mut Self {
+        self.options.rsync_command = rsync_command;
         self
     }
 
@@ -161,7 +161,7 @@ impl Client {
         };
         push_str(
             self.options
-                .rsync_path
+                .rsync_command
                 .as_deref()
                 .unwrap_or(DEFAULT_RSYNC_COMMAND),
         );
@@ -452,7 +452,7 @@ mod test {
     #[test]
     fn build_local_args_with_rsync_path() {
         let args = Client::local("testdir")
-            .set_rsync_path(Some("/opt/rsync/rsync-3.1415".to_owned()))
+            .set_rsync_command(Some("/opt/rsync/rsync-3.1415".to_owned()))
             .build_args();
         assert_eq!(
             args,

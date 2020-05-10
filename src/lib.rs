@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #![warn(missing_docs)]
+#![warn(future_incompatible)]
 
 //! A wire-compatible rsync client in Rust.
 //!

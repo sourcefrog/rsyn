@@ -21,6 +21,7 @@ use anyhow::{Context, Error, Result};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+/// Read rsync data types from a wrapped stream.
 pub struct ReadVarint {
     r: Box<dyn Read>,
 }
@@ -66,11 +67,11 @@ impl ReadVarint {
         self.r
     }
 
-    // Destructively test that this is at the end of the input.
-    //
-    // Returns an error either on an IO error, or if there's any remaining
-    // data. The remaining data will be unreachable (and corrupt.) Returns Ok(())
-    // on a clean end.
+    /// Destructively test that this is at the end of the input.
+    ///
+    /// Returns an error either on an IO error, or if there's any remaining
+    /// data. The remaining data will be unreachable (and corrupt.) Returns Ok(())
+    /// on a clean end.
     #[allow(unused)]
     pub fn check_for_eof(mut self) -> Result<()> {
         match self.read_u8().and(Ok(())) {

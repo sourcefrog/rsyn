@@ -126,13 +126,7 @@ impl Connection {
             }
         }
 
-        let mut phase = 0;
-        loop {
-            phase += 1;
-            if phase > max_phase {
-                break;
-            }
-
+        for phase in 1..=max_phase {
             debug!("Start phase {}", phase);
 
             self.wv
@@ -154,7 +148,7 @@ impl Connection {
             );
         }
 
-        debug!("send end of sequence");
+        debug!("Send end of sequence");
         self.wv
             .write_i32(-1)
             .context("Failed to send end-of-sequence marker")?;
@@ -162,7 +156,7 @@ impl Connection {
         let server_stats = self
             .read_server_statistics()
             .context("Failed to read server statistics")?;
-        info!("server statistics: {:#?}", server_stats);
+        info!("{:#?}", server_stats);
 
         // TODO: In later versions, send a final -1 marker.
         self.shutdown()?;

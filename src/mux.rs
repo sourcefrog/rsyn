@@ -82,7 +82,7 @@ impl DemuxRead {
             let h = u32::from_le_bytes(h);
             let tag = (h >> 24) as u8;
             let len = (h & 0xff_ffff) as usize;
-            debug!("Read envelope tag {:#04x} length {:#x}", tag, len);
+            trace!("Read envelope tag {:#04x} length {:#x}", tag, len);
             if tag == TAG_DATA {
                 if len == 0 {
                     return Err(io::Error::new(
@@ -100,7 +100,7 @@ impl DemuxRead {
             if tag == TAG_FATAL {
                 return Err(io::Error::new(
                     io::ErrorKind::ConnectionAborted,
-                    "remote signalled fatal error",
+                    "Remote signalled fatal error",
                 ));
             }
         }
@@ -128,10 +128,11 @@ impl MuxWrite {
 
 impl Write for MuxWrite {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        // TODO: Break large buffers into multiple packets instead of erroring.
         let l = buf.len();
         assert!(
             l < 0x0ff_ffff,
-            "data length {:#x} is too much for one packet",
+            "Data length {:#x} is too much for one packet",
             l
         );
         let l: u32 = l as u32 | ((TAG_DATA as u32) << 24);
@@ -142,7 +143,7 @@ impl Write for MuxWrite {
         self.w
             .write_all(buf)
             .expect("failed to write envelope body");
-        debug!("Send envelope tag {:#x} data {}", l, hex::encode(buf));
+        trace!("Send envelope tag {:#x} data {}", l, hex::encode(buf));
         Ok(buf.len())
     }
 

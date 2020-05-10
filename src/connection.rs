@@ -79,11 +79,11 @@ impl Connection {
 
         let salt = rv.read_i32().unwrap();
         debug!(
-            "connected to server version {}, salt {:#x}",
+            "Connected to server version {}, salt {:#x}",
             remote_protocol_version, salt
         );
         let protocol_version = std::cmp::min(MY_PROTOCOL_VERSION, remote_protocol_version);
-        info!("Agreed protocol version {}", protocol_version);
+        debug!("Agreed protocol version {}", protocol_version);
 
         // Server-to-client is multiplexed; client-to-server is not.
         // Pull back the underlying stream and wrap it in a demuxed varint

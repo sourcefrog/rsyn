@@ -135,7 +135,7 @@ pub(crate) fn read_file_list(r: &mut ReadVarint) -> Result<FileList> {
         let status = r
             .read_u8()
             .context("Failed to read file entry status byte")?;
-        debug!("file list status {:#x}", status);
+        trace!("File list status {:#x}", status);
         if status == 0 {
             break;
         }
@@ -163,28 +163,28 @@ pub(crate) fn read_file_list(r: &mut ReadVarint) -> Result<FileList> {
             new_name.append(&mut name);
             name = new_name;
         }
-        debug!("  filename: {:?}", String::from_utf8_lossy(&name));
+        trace!("  filename: {:?}", String::from_utf8_lossy(&name));
         assert!(!name.is_empty());
 
         let file_len: u64 = r
             .read_i64()?
             .try_into()
             .context("Received negative file_len")?;
-        debug!("  file_len: {}", file_len);
+        trace!("  file_len: {}", file_len);
 
         let mtime = if status & STATUS_REPEAT_MTIME == 0 {
             r.read_i32()? as u32
         } else {
             v.last().unwrap().mtime
         };
-        debug!("  mtime: {}", mtime);
+        trace!("  mtime: {}", mtime);
 
         let mode = if status & STATUS_REPEAT_MODE == 0 {
             r.read_i32()? as u32
         } else {
             v.last().unwrap().mode
         };
-        debug!("  mode: {:#o}", mode);
+        trace!("  mode: {:#o}", mode);
 
         v.push(FileEntry {
             name,
@@ -193,7 +193,7 @@ pub(crate) fn read_file_list(r: &mut ReadVarint) -> Result<FileList> {
             mode,
         });
     }
-    debug!("end of file list");
+    debug!("End of file list");
     v.sort_unstable_by(|a, b| a.name.cmp(&b.name));
     // TODO: Sort by strcmp.
     Ok(v)

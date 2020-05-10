@@ -83,7 +83,7 @@ fn list_symlink() -> rsyn::Result<()> {
     std::os::unix::fs::symlink("dangling link", tmp.path().join("a link"))?;
 
     let mut client = Client::local(tmp.path());
-    client.borrow_mut_options().list_only = true;
+    client.mut_options().list_only = true;
     let (flist, _stats) = client.list_files()?;
 
     assert_eq!(flist.len(), 2);

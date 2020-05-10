@@ -117,7 +117,7 @@ impl Client {
         }
     }
 
-    pub fn borrow_mut_options(&mut self) -> &mut Options {
+    pub fn mut_options(&mut self) -> &mut Options {
         &mut self.options
     }
 
@@ -483,7 +483,7 @@ mod test {
     fn build_ssh_args_with_user() {
         let mut address = Client::ssh(Some("mbp"), "samba.org", "/home/mbp");
         {
-            let mut options = address.borrow_mut_options();
+            let mut options = address.mut_options();
             options.recursive = true;
             options.list_only = true;
         }
@@ -510,7 +510,7 @@ mod test {
     #[test]
     fn build_ssh_args_for_default_directory() {
         let mut address: Client = "example-host:".parse().unwrap();
-        address.borrow_mut_options().list_only = true;
+        address.mut_options().list_only = true;
         let args = address.build_args();
         assert_eq!(
             args,

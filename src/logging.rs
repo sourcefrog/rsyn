@@ -22,7 +22,8 @@ use std::fmt;
 /// configuration should work.
 pub fn format_log(out: fern::FormatCallback, args: &fmt::Arguments, record: &log::Record) {
     out.finish(format_args!(
-        "[{:<30}][{}] {}",
+        "{} [{:<30}][{}] {}",
+        chrono::Local::now().format("[%m-%d %H:%M:%S]"),
         record.target(),
         record.level().to_string().chars().next().unwrap(),
         args

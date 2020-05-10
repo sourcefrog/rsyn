@@ -14,6 +14,9 @@
 
 //! Command-line program for rsyn, an rsync client in Rust.
 
+use std::path::PathBuf;
+
+use anyhow::Context;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use structopt::StructOpt;
@@ -29,10 +32,9 @@ struct Opt {
     /// Directory to list.
     path: String,
 
-    /// Turn on verbose debugging output.
-    // TODO: Perhaps take an optarg controlling filtering per module?
-    #[structopt(long)]
-    debug: bool,
+    /// File to send log/debug messages.
+    #[structopt(long, env = "RSYN_LOG_FILE")]
+    log_file: Option<PathBuf>,
 
     /// Recurse into directories.
     #[structopt(long, short = "r")]
@@ -61,18 +63,7 @@ impl Opt {
 fn main() -> Result<()> {
     let opt = Opt::from_args();
 
-    let log_level = if opt.debug {
-        log::LevelFilter::Debug
-    } else {
-        log::LevelFilter::Info
-    };
-    fern::Dispatch::new()
-        .format(rsyn::logging::format_log)
-        .level(log_level)
-        .chain(std::io::stderr())
-        .chain(fern::log_file("rsyn.log").expect("failed to open log file"))
-        .apply()
-        .expect("Failed to configure logger");
+    configure_logging(&opt)?;
 
     let mut client: Client = opt.path.parse().expect("Failed to parse path");
     *client.borrow_mut_options() = opt.to_options();
@@ -81,5 +72,36 @@ fn main() -> Result<()> {
         println!("{}", &entry)
     }
     debug!("that's all folks");
+    Ok(())
+}
+
+// Configure the logger: send everything to the log file (if there is one), and
+// send info and above to the console.
+fn configure_logging(opt: &Opt) -> Result<()> {
+    let mut to_file = fern::Dispatch::new()
+        .level(log::LevelFilter::Debug)
+        .format(rsyn::logging::format_log);
+    if let Some(ref log_file) = opt.log_file {
+        to_file = to_file.chain(fern::log_file(log_file).context("Failed to open log file")?);
+    }
+
+    let console_level = match opt.verbose {
+        0 => log::LevelFilter::Warn,
+        1 => log::LevelFilter::Info,
+        2 => log::LevelFilter::Debug,
+        _ => log::LevelFilter::Trace,
+    };
+    let to_console = fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!("[{:<8}] {}", record.level(), message))
+        })
+        .level(console_level)
+        .chain(std::io::stderr());
+
+    fern::Dispatch::new()
+        .chain(to_console)
+        .chain(to_file)
+        .apply()
+        .expect("Failed to configure logger");
     Ok(())
 }

@@ -184,7 +184,7 @@ impl Connection {
         // TODO: Should we timeout after a while?
         // TODO: Map rsync return codes to messages.
         let child_result = child.wait()?;
-        info!("Child process exited with status {}", child_result);
+        info!("Child process exited: {}", child_result);
 
         Ok(())
     }

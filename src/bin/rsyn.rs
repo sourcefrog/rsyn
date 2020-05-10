@@ -133,18 +133,13 @@ mod test {
             "/example",
         ]);
         assert_eq!(
-            &opt.rsync_path.as_deref().unwrap(),
-            &"rsync --wibble --wobble"
+            opt.rsync_path.as_deref().unwrap(),
+            "rsync --wibble --wobble"
         );
         let options = opt.to_options();
         assert_eq!(
-            &options
-                .rsync_command
-                .unwrap()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-            &["rsync", "--wibble", "--wobble"]
+            options.rsync_command.unwrap(),
+            ["rsync", "--wibble", "--wobble"]
         );
     }
 
@@ -155,13 +150,8 @@ mod test {
         let options = opt.to_options();
         assert!(options.rsync_command.is_none());
         assert_eq!(
-            options
-                .ssh_command
-                .unwrap()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-            &["ssh", "-OFoo", "-OBar=123", "-v", "-A"]
+            options.ssh_command.unwrap(),
+            ["ssh", "-OFoo", "-OBar=123", "-v", "-A"]
         );
     }
 }

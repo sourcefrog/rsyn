@@ -460,7 +460,7 @@ mod test {
             .build_args();
         assert_eq!(
             args,
-            vec!["/opt/rsync/rsync-3.1415", "--server", "--sender", "testdir"],
+            ["/opt/rsync/rsync-3.1415", "--server", "--sender", "testdir"],
         );
     }
 
@@ -469,7 +469,7 @@ mod test {
         let mut address = Client::local("./src");
         address.set_verbose(3);
         let args = address.build_args();
-        assert_eq!(args, vec!["rsync", "--server", "--sender", "-vvv", "./src"],);
+        assert_eq!(args, ["rsync", "--server", "--sender", "-vvv", "./src"],);
     }
 
     #[test]
@@ -481,7 +481,7 @@ mod test {
         let args = address.build_args();
         assert_eq!(
             args,
-            vec![
+            [
                 "ssh",
                 "samba.org",
                 "rsync",
@@ -503,7 +503,7 @@ mod test {
         let args = address.build_args();
         assert_eq!(
             args,
-            vec![
+            [
                 "ssh",
                 "-l",
                 "mbp",
@@ -533,7 +533,7 @@ mod test {
             .build_args();
         assert_eq!(
             args,
-            vec![
+            [
                 "/opt/openssh/ssh",
                 "-A",
                 "-DFoo=bar qux",
@@ -557,7 +557,7 @@ mod test {
         let args = address.build_args();
         assert_eq!(
             args,
-            vec![
+            [
                 "ssh",
                 "example-host",
                 "rsync",

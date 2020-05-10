@@ -20,7 +20,11 @@ use std::fmt;
 ///
 /// This is exposed just as a convenience for tests or other users. Any logger
 /// configuration should work.
-pub fn format_log(out: fern::FormatCallback, args: &fmt::Arguments, record: &log::Record) {
+pub fn format_log(
+    out: fern::FormatCallback<'_>,
+    args: &fmt::Arguments<'_>,
+    record: &log::Record<'_>,
+) {
     out.finish(format_args!(
         "{} [{:<30}][{}] {}",
         chrono::Local::now().format("[%m-%d %H:%M:%S]"),

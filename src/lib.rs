@@ -14,6 +14,7 @@
 
 #![warn(missing_docs)]
 #![warn(future_incompatible)]
+#![warn(rust_2018_idioms)]
 
 //! A wire-compatible rsync client in Rust.
 //!

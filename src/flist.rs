@@ -70,7 +70,7 @@ impl FileEntry {
     ///
     /// This is suitable for printing, but might not be suitable for use as a
     /// destination file name.
-    pub fn name_lossy_string(&self) -> std::borrow::Cow<str> {
+    pub fn name_lossy_string(&self) -> std::borrow::Cow<'_, str> {
         String::from_utf8_lossy(&self.name)
     }
 

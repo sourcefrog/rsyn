@@ -23,13 +23,19 @@ pub struct Options {
     pub recursive: bool,
 
     /// Command to run to start the rsync server, typically remotely.
+    ///
+    /// May be multiple words, which will be passed as separate shell arguments.
+    ///
     /// If unset, just "rsync".
-    pub rsync_command: Option<String>,
+    pub rsync_command: Option<Vec<String>>,
 
     /// Command to open a connection to the remote server.
     ///
+    /// May be multiple words to include options, which will be passed as separate
+    /// shell arguments.
+    ///
     /// If unset, just "ssh".
-    pub ssh_command: Option<String>,
+    pub ssh_command: Option<Vec<String>>,
 
     /// Only list files.
     ///

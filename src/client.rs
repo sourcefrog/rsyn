@@ -131,11 +131,6 @@ impl Client {
         self
     }
 
-    pub fn set_rsync_command(&mut self, rsync_command: Option<String>) -> &mut Self {
-        self.options.rsync_command = rsync_command;
-        self
-    }
-
     pub fn set_verbose(&mut self, verbose: u32) -> &mut Self {
         self.options.verbose = verbose;
         self
@@ -147,24 +142,26 @@ impl Client {
         let mut v = Vec::<OsString>::new();
         let mut push_str = |s: &str| v.push(s.into());
         if let Some(ref ssh) = self.ssh {
-            push_str(
-                self.options
-                    .ssh_command
-                    .as_deref()
-                    .unwrap_or(DEFAULT_SSH_COMMAND),
-            );
+            if let Some(args) = &self.options.ssh_command {
+                for arg in args {
+                    push_str(arg)
+                }
+            } else {
+                push_str(DEFAULT_SSH_COMMAND)
+            }
             if let Some(ref user) = ssh.user {
                 push_str("-l");
                 push_str(user);
             }
             push_str(&ssh.host);
         };
-        push_str(
-            self.options
-                .rsync_command
-                .as_deref()
-                .unwrap_or(DEFAULT_RSYNC_COMMAND),
-        );
+        if let Some(rsync_command) = &self.options.rsync_command {
+            for arg in rsync_command {
+                push_str(arg)
+            }
+        } else {
+            push_str(DEFAULT_RSYNC_COMMAND)
+        }
         push_str("--server");
         push_str("--sender");
         if self.options.verbose > 0 {
@@ -452,7 +449,10 @@ mod test {
     #[test]
     fn build_local_args_with_rsync_path() {
         let args = Client::local("testdir")
-            .set_rsync_command(Some("/opt/rsync/rsync-3.1415".to_owned()))
+            .set_options(Options {
+                rsync_command: Some(vec!["/opt/rsync/rsync-3.1415".to_owned()]),
+                ..Options::default()
+            })
             .build_args();
         assert_eq!(
             args,
@@ -516,11 +516,14 @@ mod test {
 
     #[test]
     fn build_ssh_args_with_ssh_command() {
-        // TODO: Test an SSH command containing spaces, which should be split.
+        let ssh_args = ["/opt/openssh/ssh", "-A", "-DFoo=bar qux"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         let args = Client::from_str("mbp@bilbo:/home/www")
             .unwrap()
             .set_options(Options {
-                ssh_command: Some("/opt/openssh/ssh".to_string()),
+                ssh_command: Some(ssh_args),
                 ..Options::default()
             })
             .build_args();
@@ -528,6 +531,8 @@ mod test {
             args,
             vec![
                 "/opt/openssh/ssh",
+                "-A",
+                "-DFoo=bar qux",
                 "-l",
                 "mbp",
                 "bilbo",

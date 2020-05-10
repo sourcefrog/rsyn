@@ -64,8 +64,12 @@ impl Opt {
             recursive: self.recursive,
             list_only: self.list_only,
             verbose: self.verbose,
-            rsync_command: self.rsync_path.clone(),
-            ssh_command: self.rsh.clone(),
+            rsync_command: self.rsync_path.as_ref().map(|p| {
+                shell_words::split(&p).expect("Failed to split shell words from rsync_command")
+            }),
+            ssh_command: self.rsh.as_ref().map(|p| {
+                shell_words::split(&p).expect("Failed to split shell words from ssh_command")
+            }),
         }
     }
 }
@@ -114,4 +118,50 @@ fn configure_logging(opt: &Opt) -> Result<()> {
         .apply()
         .expect("Failed to configure logger");
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn rsync_path_option() {
+        let opt = Opt::from_iter(&[
+            "rsyn",
+            "--rsync-path=rsync --wibble --wobble",
+            "-vv",
+            "/example",
+        ]);
+        assert_eq!(
+            &opt.rsync_path.as_deref().unwrap(),
+            &"rsync --wibble --wobble"
+        );
+        let options = opt.to_options();
+        assert_eq!(
+            &options
+                .rsync_command
+                .unwrap()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            &["rsync", "--wibble", "--wobble"]
+        );
+    }
+
+    #[test]
+    fn rsh_option() {
+        let opt = Opt::from_iter(&["rsyn", "--rsh=ssh -OFoo -OBar=123 -v -A", "-vv", "/example"]);
+        assert!(opt.rsync_path.is_none());
+        let options = opt.to_options();
+        assert!(options.rsync_command.is_none());
+        assert_eq!(
+            options
+                .ssh_command
+                .unwrap()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            &["ssh", "-OFoo", "-OBar=123", "-v", "-A"]
+        );
+    }
 }

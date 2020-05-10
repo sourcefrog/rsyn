@@ -24,7 +24,7 @@ use log::{debug, error, info, trace, warn};
 ///
 /// ```
 /// use rsyn::{Client, Options};
-/// let mut client = "rsync.example.com::mod".parse::<Client>().unwrap();
+/// let mut client = Client::from_str("rsync.example.com::mod").unwrap();
 /// client.set_options(Options {
 ///     verbose: 2,
 ///     recursive: true,
@@ -51,9 +51,9 @@ pub struct Options {
     /// If unset, just "ssh".
     pub ssh_command: Option<Vec<String>>,
 
-    /// Only list files.
+    /// Only list files, don't transfer contents.
     ///
-    /// This is implied by `Address:list_files` and need not be separately set.
+    /// In some cases the server will infer this.
     pub list_only: bool,
 
     /// Be verbose.

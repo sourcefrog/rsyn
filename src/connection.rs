@@ -35,8 +35,6 @@ const MY_PROTOCOL_VERSION: i32 = 27;
 
 /// Connection to an rsync server.
 ///
-/// Connections are obtained from `Address::connect`.
-///
 /// Due to the protocol definition, only one transfer (list, send, or receive)
 /// can be done per connection.
 pub(crate) struct Connection {

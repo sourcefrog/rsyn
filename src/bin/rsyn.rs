@@ -80,7 +80,7 @@ fn main() -> Result<()> {
 
     configure_logging(&opt)?;
 
-    let mut client: Client = opt.path.parse().expect("Failed to parse path");
+    let mut client = Client::from_str(&opt.path).expect("Failed to parse path");
     *client.mut_options() = opt.to_options();
     let (file_list, _stats) = client.list_files()?;
     for entry in file_list {

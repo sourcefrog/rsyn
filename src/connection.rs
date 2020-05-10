@@ -16,6 +16,7 @@
 
 #![allow(unused_imports)]
 
+use std::convert::TryInto;
 use std::io;
 use std::io::prelude::*;
 use std::io::ErrorKind;
@@ -26,7 +27,7 @@ use anyhow::{bail, Context, Result};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::flist::{read_file_list, FileList};
+use crate::flist::{read_file_list, FileEntry, FileList};
 use crate::mux::DemuxRead;
 use crate::varint::{ReadVarint, WriteVarint};
 use crate::{Options, ServerStatistics};
@@ -104,7 +105,11 @@ impl Connection {
     ///
     /// The file list is in the sorted order defined by the protocol, which
     /// is strcmp on the raw bytes of the names.
-    pub(crate) fn list_files(mut self) -> Result<(FileList, ServerStatistics)> {
+    pub(crate) fn list_files(self) -> Result<(FileList, ServerStatistics)> {
+        self.receive()
+    }
+
+    fn receive(mut self) -> Result<(FileList, ServerStatistics)> {
         // Analogous to rsync/receiver.c recv_files().
         // let max_phase = if self.protocol_version >= 29 { 2 } else { 1 };
         let max_phase = 2;
@@ -130,10 +135,6 @@ impl Connection {
         for phase in 1..=max_phase {
             debug!("Start phase {}", phase);
 
-            self.wv
-                .write_i32(-1)
-                .context("Failed to send phase transition")?; // end of phase 1
-
             // Server stops here if there were no files.
             if file_list.is_empty() {
                 info!("Server returned no files, so we're done");
@@ -141,12 +142,22 @@ impl Connection {
                 return Ok((file_list, ServerStatistics::default()));
             }
 
-            assert_eq!(
-                self.rv
-                    .read_i32()
-                    .context("Failed to read phase transition")?,
-                -1
-            );
+            // Select the files we want to receive.
+            // self.generate_one_file(&file_list)?;
+
+            self.wv
+                .write_i32(-1)
+                .context("Failed to send phase transition")?; // end of phase 1
+
+            // Server sends a series of file indexes, terminated by -1.
+            loop {
+                let idx = self.rv.read_i32().context("Failed to read file index")?;
+                trace!("Received index {}", idx);
+                if idx == -1 {
+                    break;
+                }
+                // TODO: Receive and act on the per-file message.
+            }
         }
 
         debug!("Send end of sequence");
@@ -162,6 +173,30 @@ impl Connection {
         // TODO: In later versions, send a final -1 marker.
         self.shutdown()?;
         Ok((file_list, server_stats))
+    }
+
+    /// Produce a generator request for the first file in the list, as if it
+    /// doesn't exist locally.
+    fn generate_one_file(&mut self, file_list: &[FileEntry]) -> Result<()> {
+        // compare to `recv_generator` in generator.c.
+
+        assert!(!file_list.is_empty());
+        for (idx, entry) in file_list.iter().filter(|e| e.is_file()).enumerate().take(1) {
+            debug!(
+                "Send request for file idx {}, name {:?}",
+                idx,
+                entry.name_lossy_string()
+            );
+            self.wv.write_i32(idx.try_into().unwrap())?; // index
+
+            // Like write_sum_head.
+            self.wv.write_i32(0)?; // count
+            self.wv.write_i32(0)?; // blength
+            self.wv.write_i32(0)?; // s2length
+            self.wv.write_i32(0)?; // remainder
+        }
+
+        Ok(())
     }
 
     /// Shut down this connection, consuming the object.

@@ -4,16 +4,24 @@ on: [push, pull_request]
 
 jobs:
   build:
-
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        # TODO: Add windows-latest once we know how to install rsync there, or once interop tests are optional.
-    
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      RUST_BACKTRACE: 1
     steps:
+    - name: Install rsync from Chocolatey
+      if: ${{ matrix.os == 'windows-latest' }}
+      run: choco install rsync
     - uses: actions/checkout@v2
     - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      run: cargo build --all --verbose --all-targets
+    - name: Unit tests
+      run: cargo test --lib --bins
+    - name: Integration tests
+      # TODO: Fix these to test against external rsync on Windows.
+      # TODO: At least, run integration tests that don't depend on an external rsync.
+      if: ${{ matrix.os != 'windows-latest' }}
+      run: cargo test --tests

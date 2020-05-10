@@ -2,7 +2,7 @@
 
 [![crates.io](https://img.shields.io/crates/v/rsyn.svg)](https://crates.io/crates/rsyn)
 [![docs.rs](https://docs.rs/rsyn/badge.svg)](https://docs.rs/rsyn)
-[![Tests](https://github.com/sourcefrog/rsyn/workflows/rust/badge.svg?branch=master)](https://github.com/sourcefrog/rsyn/actions?query=workflow%3Arust)
+[![Tests](https://github.com/sourcefrog/rsyn/workflows/rust/badge.svg)](https://github.com/sourcefrog/rsyn/actions?query=workflow%3Arust)
 
 `rsyn` reimplements part of the rsync network protocol in pure Rust. (It's
 "rsync with no C.")

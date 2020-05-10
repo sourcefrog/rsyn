@@ -17,6 +17,20 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+/// Command-line options controlling the local and remote processes.
+///
+/// These are held inside a [`Client`](struct.Client.html),
+/// and are passed to the remote side when the connection is opened.
+///
+/// ```
+/// use rsyn::{Client, Options};
+/// let mut client = "rsync.example.com::mod".parse::<Client>().unwrap();
+/// client.set_options(Options {
+///     verbose: 2,
+///     recursive: true,
+///     .. Options::default()
+/// });
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct Options {
     /// Recurse into directories.

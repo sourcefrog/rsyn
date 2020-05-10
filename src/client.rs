@@ -117,20 +117,24 @@ impl Client {
         }
     }
 
+    /// Mutably borrow this client's `Options`.
     pub fn mut_options(&mut self) -> &mut Options {
         &mut self.options
     }
 
+    /// Replace this client's `Options`.
     pub fn set_options(&mut self, options: Options) -> &mut Self {
         self.options = options;
         self
     }
 
+    /// Set the `recursive` option.
     pub fn set_recursive(&mut self, recursive: bool) -> &mut Self {
         self.options.recursive = recursive;
         self
     }
 
+    /// Set the `verbose` option.
     pub fn set_verbose(&mut self, verbose: u32) -> &mut Self {
         self.options.verbose = verbose;
         self

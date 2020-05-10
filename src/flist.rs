@@ -14,6 +14,7 @@
 
 //! File lists and entries.
 
+use std::cmp::Ordering;
 use std::convert::TryInto;
 use std::fmt;
 
@@ -34,13 +35,20 @@ const STATUS_REPEAT_PARTIAL_NAME: u8 = 0x20;
 const STATUS_LONG_NAME: u8 = 0x40;
 const STATUS_REPEAT_MTIME: u8 = 0x80;
 
+type ByteString = Vec<u8>;
+
 /// Description of a single file (or directory or symlink etc).
 ///
 /// The `Display` trait formats an entry like in `ls -l`, and like in rsync
 /// directory listings.
 #[derive(Debug, PartialEq, Eq)]
 pub struct FileEntry {
+    // Corresponds to rsync |file_struct|.
+    /// Name of this file, as a byte string.
     name: Vec<u8>,
+
+    /// Index in `name` of the last `'/'`.
+    last_slash: Option<usize>,
 
     /// Length of the file, in bytes.
     pub file_len: u64,
@@ -50,6 +58,11 @@ pub struct FileEntry {
 
     /// Modification time, in seconds since the Unix epoch.
     mtime: u32,
+
+    /// If this is a symlink, the target.
+    link_target: Option<ByteString>,
+    // TODO: Other file_struct fields.
+    // TODO: Work out what |basedir| is and maybe include that.
 }
 
 impl FileEntry {
@@ -98,6 +111,20 @@ impl FileEntry {
     /// local timezone.
     pub fn mtime(&self) -> chrono::DateTime<Local> {
         Local.timestamp(self.mtime as i64, 0)
+    }
+
+    /// Return the directory name, defined as the substring up to the last `'/'`
+    /// if any. In the root directory, this is an empty slice.
+    pub fn dirname(&self) -> &[u8] {
+        &self.name[..self.last_slash.unwrap_or_default()]
+    }
+
+    /// Return the base file name, after the last slash (if any).
+    pub fn basename(&self) -> &[u8] {
+        match self.last_slash {
+            None => &self.name,
+            Some(p) => &self.name[(p + 1)..],
+        }
     }
 }
 
@@ -151,11 +178,6 @@ fn receive_file_entry(
         return Ok(None);
     }
 
-    // The name can be given in several ways:
-    // * Fully specified with a byte length.
-    // * Fully specified with an int length.
-    // * Partially repeated, with a byte specifying how much is
-    //   inherited.
     let inherit_name_bytes = if (status & STATUS_REPEAT_PARTIAL_NAME) != 0 {
         r.read_u8().context("Failed to read inherited name bytes")? as usize
     } else {
@@ -176,6 +198,7 @@ fn receive_file_entry(
     }
     trace!("  filename: {:?}", String::from_utf8_lossy(&name));
     assert!(!name.is_empty());
+    let last_slash = name.iter().rposition(|c| *c == b'/');
 
     let file_len: u64 = r
         .read_i64()?
@@ -197,18 +220,46 @@ fn receive_file_entry(
     };
     trace!("  mode: {:#o}", mode);
 
+    // TODO: If the relevant options are set, read uid, gid, device, link target.
+
     Ok(Some(FileEntry {
         name,
+        last_slash,
         file_len,
         mtime,
         mode,
+        link_target: None,
     }))
+}
+
+/// Compare two entry names, in the protocol 27 sort.
+fn file_compare_27(a: &FileEntry, b: &FileEntry) -> Ordering {
+    // Corresponds to |file_compare|.
+    let a_base = a.basename();
+    let b_base = b.basename();
+    let a_dir = a.dirname();
+    let b_dir = b.dirname();
+    if a_base.is_empty() && b_base.is_empty() {
+        Ordering::Equal
+    } else if a_base.is_empty() {
+        Ordering::Greater
+    } else if b_base.is_empty() {
+        Ordering::Less
+    } else if a_dir == b_dir {
+        a_base.cmp(&b_base)
+    } else {
+        a.name.cmp(&b.name)
+    }
 }
 
 pub(crate) fn sort(file_list: &mut [FileEntry]) {
     // Compare to rsync `file_compare`.
     // TODO: Clean the list of duplicates, like in rsync `clean_flist`.
-    file_list.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+    file_list.sort_unstable_by(file_compare_27);
+    debug!("File list sort done");
+    for (i, entry) in file_list.iter().enumerate() {
+        debug!("[{:8}] {:?}", i, entry.name_lossy_string())
+    }
 }
 
 #[cfg(test)]
@@ -223,6 +274,8 @@ mod test {
             file_len: 420,
             mtime: 1588429517,
             name: b"rsyn".to_vec(),
+            last_slash: None,
+            link_target: None,
         };
         // The mtime is in the local timezone, and we need the tests to pass
         // regardless of timezone. Rust Chrono doesn't seem to provide a way
@@ -240,4 +293,9 @@ mod test {
             entry_display
         );
     }
+
+    // TODO: Test reading and decoding from a byte string, including finding the
+    // directory separator.
+
+    // TODO: Test sorting.
 }

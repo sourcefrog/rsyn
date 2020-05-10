@@ -36,6 +36,10 @@ struct Opt {
     #[structopt(long, env = "RSYN_LOG_FILE")]
     log_file: Option<PathBuf>,
 
+    /// Shell command to run to start rsync server.
+    #[structopt(long, env = "RSYN_RSYNC_PATH")]
+    rsync_path: Option<String>,
+
     /// Recurse into directories.
     #[structopt(long, short = "r")]
     recursive: bool,
@@ -56,6 +60,7 @@ impl Opt {
             recursive: self.recursive,
             list_only: self.list_only,
             verbose: self.verbose,
+            rsync_path: self.rsync_path.clone(),
         }
     }
 }

@@ -22,6 +22,9 @@ pub struct Options {
     /// Recurse into directories.
     pub recursive: bool,
 
+    /// Command to run to start the rsync server, typically remotely.
+    pub rsync_path: Option<String>,
+
     /// Only list files.
     ///
     /// This is implied by `Address:list_files` and need not be separately set.

@@ -33,7 +33,7 @@ use crate::{FileList, Options, Result, ServerStatistics};
 /// SSH command name, to start it as a subprocess.
 const SSH_COMMAND: &str = "ssh";
 /// rsync command name, to start it as a subprocess either locally or remotely.
-const RSYNC_COMMAND: &str = "rsync";
+const DEFAULT_RSYNC_COMMAND: &str = "rsync";
 
 /// The address of an rsync server, including
 /// information about how to open the connection.
@@ -126,6 +126,11 @@ impl Client {
         self
     }
 
+    pub fn set_rsync_path(&mut self, rsync_path: Option<String>) -> &mut Self {
+        self.options.rsync_path = rsync_path;
+        self
+    }
+
     pub fn set_verbose(&mut self, verbose: u32) -> &mut Self {
         self.options.verbose = verbose;
         self
@@ -143,10 +148,14 @@ impl Client {
                 push_str(user);
             }
             push_str(&ssh.host);
-            push_str(RSYNC_COMMAND);
-        } else {
-            push_str(RSYNC_COMMAND);
         };
+        push_str(
+            &self
+                .options
+                .rsync_path
+                .as_deref()
+                .unwrap_or(DEFAULT_RSYNC_COMMAND),
+        );
         push_str("--server");
         push_str("--sender");
         if self.options.verbose > 0 {
@@ -429,6 +438,17 @@ mod test {
     fn build_local_args() {
         let args = Client::local("./src").set_recursive(true).build_args();
         assert_eq!(args, vec!["rsync", "--server", "--sender", "-r", "./src"],);
+    }
+
+    #[test]
+    fn build_local_args_with_rsync_path() {
+        let args = Client::local("testdir")
+            .set_rsync_path(Some("/opt/rsync/rsync-3.1415".to_owned()))
+            .build_args();
+        assert_eq!(
+            args,
+            vec!["/opt/rsync/rsync-3.1415", "--server", "--sender", "testdir"],
+        );
     }
 
     #[test]

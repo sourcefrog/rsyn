@@ -16,9 +16,13 @@
 #![warn(missing_docs)]
 #![warn(future_incompatible)]
 #![warn(rust_2018_idioms)]
-#![warn(rustdoc)]
-// This is a nice idea but unfortunately warns on types republished by `pub use`.
+// private_doc_tests is a nice idea but unfortunately warns on types republished
+// by `pub use`.
+// https://github.com/rust-lang/rust/issues/72081
 #![allow(private_doc_tests)]
+// MAYBE: warn(missing-doc-code-examples) but covering everything isn't a
+// priority yet.
+#![warn(intra_doc_link_resolution_failure)]
 
 //! A wire-compatible rsync client in Rust.
 //!

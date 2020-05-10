@@ -140,6 +140,7 @@ pub(crate) fn read_file_list(r: &mut ReadVarint) -> Result<FileList> {
     // Corresponds to rsync |receive_file_entry|.
     // TODO: Support receipt of uid and gid with -o, -g.
     // TODO: Support devices, links, etc.
+    // TODO: Sort order changes in different protocol versions.
 
     let mut v: Vec<FileEntry> = Vec::new();
     while let Some(entry) = receive_file_entry(r, v.last())? {

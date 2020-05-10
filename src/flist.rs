@@ -122,6 +122,7 @@ impl fmt::Display for FileEntry {
     }
 }
 
+/// A list of files returned from a server.
 pub type FileList = Vec<FileEntry>;
 
 /// Read a file list off the wire, and return it in sorted order.

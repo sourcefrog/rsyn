@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![warn(missing_docs)]
+
 //! A wire-compatible rsync client in Rust.
 //!
 //! Use the [`Client`](struct.Client.html) type to list or transfer files:

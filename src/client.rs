@@ -174,8 +174,6 @@ impl Client {
     ///
     /// This implicitly sets the `list_only` option.
     pub fn list_files(&mut self) -> Result<(FileList, ServerStatistics)> {
-        // TODO: Permanently mutating the flag here is a bit messy.
-        self.options.list_only = true;
         self.connect()
             .context("Failed to connect")?
             .list_files()

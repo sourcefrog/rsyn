@@ -82,7 +82,9 @@ fn list_symlink() -> rsyn::Result<()> {
     let tmp = TempDir::new("rsyn_interop_list_symlink")?;
     std::os::unix::fs::symlink("dangling link", tmp.path().join("a link"))?;
 
-    let (flist, _stats) = Client::local(tmp.path()).list_files()?;
+    let mut client = Client::local(tmp.path());
+    client.borrow_mut_options().list_only = true;
+    let (flist, _stats) = client.list_files()?;
 
     assert_eq!(flist.len(), 2);
     assert_eq!(flist[0].name_lossy_string(), ".");

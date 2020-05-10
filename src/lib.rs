@@ -26,11 +26,15 @@
 
 //! A wire-compatible rsync client in Rust.
 //!
+//! Messages are sent to [`log`](https://docs.rs/log/) and a log destination
+//! may optionally be configured by clients.
+//!
 //! Use the [`Client`](struct.Client.html) type to list or transfer files:
 //!
 //! ```
 //! // Open a connection to a local rsync server, and list the source directory.
 //! use rsyn::{Client, Options};
+//!
 //! let mut client = Client::local("./src");
 //! client.set_recursive(true);
 //! let (flist, _stats) = client.list_files()?;
@@ -44,7 +48,6 @@
 mod client;
 mod connection;
 mod flist;
-pub mod logging;
 mod mux;
 mod options;
 mod statistics;

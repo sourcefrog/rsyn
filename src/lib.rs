@@ -17,6 +17,8 @@
 #![warn(future_incompatible)]
 #![warn(rust_2018_idioms)]
 #![warn(rustdoc)]
+// This is a nice idea but unfortunately warns on types republished by `pub use`.
+#![allow(private_doc_tests)]
 
 //! A wire-compatible rsync client in Rust.
 //!

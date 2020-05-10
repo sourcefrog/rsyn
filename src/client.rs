@@ -31,7 +31,7 @@ use crate::connection::Connection;
 use crate::{FileList, Options, Result, ServerStatistics};
 
 /// SSH command name, to start it as a subprocess.
-const SSH_COMMAND: &str = "ssh";
+const DEFAULT_SSH_COMMAND: &str = "ssh";
 /// rsync command name, to start it as a subprocess either locally or remotely.
 const DEFAULT_RSYNC_COMMAND: &str = "rsync";
 
@@ -121,6 +121,11 @@ impl Client {
         &mut self.options
     }
 
+    pub fn set_options(&mut self, options: Options) -> &mut Self {
+        self.options = options;
+        self
+    }
+
     pub fn set_recursive(&mut self, recursive: bool) -> &mut Self {
         self.options.recursive = recursive;
         self
@@ -142,7 +147,12 @@ impl Client {
         let mut v = Vec::<OsString>::new();
         let mut push_str = |s: &str| v.push(s.into());
         if let Some(ref ssh) = self.ssh {
-            push_str(SSH_COMMAND);
+            push_str(
+                self.options
+                    .ssh_command
+                    .as_deref()
+                    .unwrap_or(DEFAULT_SSH_COMMAND),
+            );
             if let Some(ref user) = ssh.user {
                 push_str("-l");
                 push_str(user);
@@ -150,8 +160,7 @@ impl Client {
             push_str(&ssh.host);
         };
         push_str(
-            &self
-                .options
+            self.options
                 .rsync_path
                 .as_deref()
                 .unwrap_or(DEFAULT_RSYNC_COMMAND),
@@ -502,6 +511,31 @@ mod test {
                 "-r",
                 "/home/mbp"
             ],
+        );
+    }
+
+    #[test]
+    fn build_ssh_args_with_ssh_command() {
+        // TODO: Test an SSH command containing spaces, which should be split.
+        let args = Client::from_str("mbp@bilbo:/home/www")
+            .unwrap()
+            .set_options(Options {
+                ssh_command: Some("/opt/openssh/ssh".to_string()),
+                ..Options::default()
+            })
+            .build_args();
+        assert_eq!(
+            args,
+            vec![
+                "/opt/openssh/ssh",
+                "-l",
+                "mbp",
+                "bilbo",
+                "rsync",
+                "--server",
+                "--sender",
+                "/home/www",
+            ]
         );
     }
 

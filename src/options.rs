@@ -23,7 +23,13 @@ pub struct Options {
     pub recursive: bool,
 
     /// Command to run to start the rsync server, typically remotely.
+    /// If unset, just "rsync".
     pub rsync_path: Option<String>,
+
+    /// Command to open a connection to the remote server.
+    ///
+    /// If unset, just "ssh".
+    pub ssh_command: Option<String>,
 
     /// Only list files.
     ///

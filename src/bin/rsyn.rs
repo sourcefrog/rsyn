@@ -40,6 +40,10 @@ struct Opt {
     #[structopt(long, env = "RSYN_RSYNC_PATH")]
     rsync_path: Option<String>,
 
+    /// Shell command to open a connection to a remote server (default is ssh).
+    #[structopt(long, short = "e", env = "RSYN_RSH")]
+    rsh: Option<String>,
+
     /// Recurse into directories.
     #[structopt(long, short = "r")]
     recursive: bool,
@@ -61,6 +65,7 @@ impl Opt {
             list_only: self.list_only,
             verbose: self.verbose,
             rsync_path: self.rsync_path.clone(),
+            ssh_command: self.rsh.clone(),
         }
     }
 }

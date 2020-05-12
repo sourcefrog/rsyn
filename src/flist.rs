@@ -235,6 +235,9 @@ fn receive_file_entry(
 /// Compare two entry names, in the protocol 27 sort.
 fn file_compare_27(a: &FileEntry, b: &FileEntry) -> Ordering {
     // Corresponds to |file_compare|.
+    // TODO: The cases where this returns a result without looking at the
+    // whole name are alarming. Does it make the sort not a total order, or
+    // do those cases never happen?
     let a_base = a.basename();
     let b_base = b.basename();
     let a_dir = a.dirname();
@@ -255,7 +258,7 @@ fn file_compare_27(a: &FileEntry, b: &FileEntry) -> Ordering {
 pub(crate) fn sort(file_list: &mut [FileEntry]) {
     // Compare to rsync `file_compare`.
     // TODO: Clean the list of duplicates, like in rsync `clean_flist`.
-    file_list.sort_unstable_by(file_compare_27);
+    file_list.sort_by(file_compare_27);
     debug!("File list sort done");
     for (i, entry) in file_list.iter().enumerate() {
         debug!("[{:8}] {:?}", i, entry.name_lossy_string())

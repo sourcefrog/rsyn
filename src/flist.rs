@@ -47,9 +47,6 @@ pub struct FileEntry {
     /// Name of this file, as a byte string.
     name: Vec<u8>,
 
-    /// Index in `name` of the last `'/'`.
-    last_slash: Option<usize>,
-
     /// Length of the file, in bytes.
     pub file_len: u64,
 
@@ -111,20 +108,6 @@ impl FileEntry {
     /// local timezone.
     pub fn mtime(&self) -> chrono::DateTime<Local> {
         Local.timestamp(self.mtime as i64, 0)
-    }
-
-    /// Return the directory name, defined as the substring up to the last `'/'`
-    /// if any. In the root directory, this is an empty slice.
-    pub fn dirname(&self) -> &[u8] {
-        &self.name[..self.last_slash.unwrap_or_default()]
-    }
-
-    /// Return the base file name, after the last slash (if any).
-    pub fn basename(&self) -> &[u8] {
-        match self.last_slash {
-            None => &self.name,
-            Some(p) => &self.name[(p + 1)..],
-        }
     }
 }
 
@@ -198,7 +181,6 @@ fn receive_file_entry(
     }
     trace!("  filename: {:?}", String::from_utf8_lossy(&name));
     assert!(!name.is_empty());
-    let last_slash = name.iter().rposition(|c| *c == b'/');
 
     let file_len: u64 = r
         .read_i64()?
@@ -224,7 +206,6 @@ fn receive_file_entry(
 
     Ok(Some(FileEntry {
         name,
-        last_slash,
         file_len,
         mtime,
         mode,
@@ -263,7 +244,6 @@ mod test {
             file_len: 420,
             mtime: 1588429517,
             name: b"rsyn".to_vec(),
-            last_slash: None,
             link_target: None,
         };
         // The mtime is in the local timezone, and we need the tests to pass
@@ -283,8 +263,7 @@ mod test {
         );
     }
 
-    // TODO: Test reading and decoding from a byte string, including finding the
-    // directory separator.
+    // TODO: Test reading and decoding from an varint stream.
 
     /// Examples from verbose output of rsync 2.6.1.
     #[test]

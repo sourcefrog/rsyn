@@ -161,6 +161,10 @@ do better.
 
 - rsyn need not generate exactly identical text/log output.
 
+## More docs
+
+* [Release notes](NEWS.md)
+
 ## Acknowledgements
 
 Thanks to [Tridge](https://www.samba.org/~tridge/) for his brilliant and

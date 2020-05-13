@@ -233,32 +233,18 @@ fn receive_file_entry(
 }
 
 /// Compare two entry names, in the protocol 27 sort.
-fn file_compare_27(a: &FileEntry, b: &FileEntry) -> Ordering {
-    // Corresponds to |file_compare|.
-    // TODO: The cases where this returns a result without looking at the
-    // whole name are alarming. Does it make the sort not a total order, or
-    // do those cases never happen?
-    let a_base = a.basename();
-    let b_base = b.basename();
-    let a_dir = a.dirname();
-    let b_dir = b.dirname();
-    if a_base.is_empty() && b_base.is_empty() {
-        Ordering::Equal
-    } else if a_base.is_empty() {
-        Ordering::Greater
-    } else if b_base.is_empty() {
-        Ordering::Less
-    } else if a_dir == b_dir {
-        a_base.cmp(&b_base)
-    } else {
-        a.name.cmp(&b.name)
-    }
+///
+/// The rsync code is complex but seems to reduce to a strcmp for names
+/// that actually occur, once you cancel
+/// out the somewhat complicated sharing of string parts.
+fn filename_compare_27(a: &[u8], b: &[u8]) -> Ordering {
+    a.cmp(&b)
 }
 
 pub(crate) fn sort(file_list: &mut [FileEntry]) {
     // Compare to rsync `file_compare`.
     // TODO: Clean the list of duplicates, like in rsync `clean_flist`.
-    file_list.sort_by(file_compare_27);
+    file_list.sort_by(|a, b| filename_compare_27(&a.name, &b.name));
     debug!("File list sort done");
     for (i, entry) in file_list.iter().enumerate() {
         debug!("[{:8}] {:?}", i, entry.name_lossy_string())
@@ -300,5 +286,25 @@ mod test {
     // TODO: Test reading and decoding from a byte string, including finding the
     // directory separator.
 
-    // TODO: Test sorting.
+    /// Examples from verbose output of rsync 2.6.1.
+    #[test]
+    fn ordering_examples() {
+        const EXAMPLE: &[&[u8]] = &[
+            b"./",
+            b".git/",
+            b".git/HEAD",
+            b".github/",
+            b".github/workflows/",
+            b".github/workflows/rust.yml",
+            b".gitignore",
+            b"CONTRIBUTING.md",
+            b"src/",
+            b"src/lib.rs",
+        ];
+        for (i, a) in EXAMPLE.iter().enumerate() {
+            for (j, b) in EXAMPLE.iter().enumerate() {
+                assert_eq!(filename_compare_27(a, b), i.cmp(&j))
+            }
+        }
+    }
 }

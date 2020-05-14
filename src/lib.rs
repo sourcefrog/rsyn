@@ -23,6 +23,8 @@
 // MAYBE: warn(missing-doc-code-examples) but covering everything isn't a
 // priority yet.
 #![warn(intra_doc_link_resolution_failure)]
+// Match on Ord isn't any easier to read.
+#![allow(clippy::comparison_chain)]
 
 //! A wire-compatible rsync client in Rust.
 //!

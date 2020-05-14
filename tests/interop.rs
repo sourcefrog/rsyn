@@ -23,7 +23,7 @@ use anyhow::Result;
 use chrono::prelude::*;
 use tempdir::TempDir;
 
-use rsyn::Client;
+use rsyn::{Client, Options};
 
 /// List files from a newly-created temporary directory.
 #[test]
@@ -106,7 +106,22 @@ fn list_symlink() -> rsyn::Result<()> {
 #[test]
 fn list_files_etc() -> Result<()> {
     install_test_logger();
-    let (_flist, _stats) = Client::local("/etc").set_recursive(true).list_files()?;
+    let mut client = Client::local("/etc");
+    client.set_options(Options {
+        recursive: true,
+        list_only: true,
+        ..Options::default()
+    });
+    let (flist, _stats) = client.list_files()?;
+    assert_eq!(
+        flist
+            .iter()
+            .filter(|e| e.name_lossy_string() == "passwd"
+                && e.is_file()
+                && (e.mode & 0o777 == 0o644))
+            .count(),
+        1
+    );
     Ok(())
 }
 
@@ -116,8 +131,22 @@ fn list_files_etc() -> Result<()> {
 fn list_files_dev() -> Result<()> {
     install_test_logger();
     let mut client = Client::local("/dev");
-    client.set_recursive(true);
-    let (_flist, _stats) = client.list_files()?;
+    client.set_options(Options {
+        recursive: true,
+        list_only: true,
+        ..Options::default()
+    });
+    let (flist, _stats) = client.list_files()?;
+    assert_eq!(
+        flist
+            .iter()
+            .filter(|e| e.name_lossy_string() == "null"
+                && !e.is_file()
+                && unix_mode::is_char_device(e.mode)
+                && (e.mode & 0o777 == 0o666))
+            .count(),
+        1
+    );
     Ok(())
 }
 

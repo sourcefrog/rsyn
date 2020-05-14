@@ -62,3 +62,5 @@ pub use statistics::ServerStatistics;
 
 /// General Result type from rsyn APIs.
 pub type Result<T> = anyhow::Result<T>;
+
+const MD4_SUM_LENGTH: usize = 16;

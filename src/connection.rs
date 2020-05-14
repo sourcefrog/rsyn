@@ -26,6 +26,7 @@ use std::process::{Child, Command, Stdio};
 use anyhow::{bail, Context, Result};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use md4::{Digest, Md4};
 
 use crate::flist::{read_file_list, FileEntry, FileList};
 use crate::mux::DemuxRead;
@@ -45,12 +46,15 @@ pub(crate) struct Connection {
     /// Mutually-agreed rsync protocol version number.
     protocol_version: i32,
 
-    #[allow(unused)]
-    salt: i32,
+    /// Permutation to checksums, pushed as a le i32 at the start of file MD4s.
+    checksum_seed: i32,
 
+    /// The child process carrying this connection.
     child: Child,
 
-    #[allow(unused)]
+    /// Connection options, corresponding to a subset of rsync command-line options.
+    ///
+    /// The options affect which fields are present or not on the wire.
     options: Options,
 }
 
@@ -75,13 +79,14 @@ impl Connection {
                 remote_protocol_version
             );
         }
-        // The server and client agree to use the minimum supported version, which will now be
-        // ours.
+        // The server and client agree to use the minimum supported version,
+        // which will now be ours, because we refuse to accept anything
+        // older.
 
-        let salt = rv.read_i32().unwrap();
+        let checksum_seed = rv.read_i32().unwrap();
         debug!(
-            "Connected to server version {}, salt {:#x}",
-            remote_protocol_version, salt
+            "Connected to server version {}, checksum_seed {:#x}",
+            remote_protocol_version, checksum_seed
         );
         let protocol_version = std::cmp::min(MY_PROTOCOL_VERSION, remote_protocol_version);
         debug!("Agreed protocol version {}", protocol_version);
@@ -95,7 +100,7 @@ impl Connection {
             rv,
             wv,
             protocol_version,
-            salt,
+            checksum_seed,
             child,
             options,
         })
@@ -138,26 +143,23 @@ impl Connection {
             // Server stops here if there were no files.
             if file_list.is_empty() {
                 info!("Server returned no files, so we're done");
+                // TODO: Maybe write one -1 here?
                 self.shutdown()?;
                 return Ok((file_list, ServerStatistics::default()));
             }
 
-            // Select the files we want to receive.
-            // self.generate_one_file(&file_list)?;
+            if phase == 1 && !self.options.list_only {
+                self.transfer_files(&file_list)?;
+            }
 
             self.wv
                 .write_i32(-1)
-                .context("Failed to send phase transition")?; // end of phase 1
-
-            // Server sends a series of file indexes, terminated by -1.
-            loop {
-                let idx = self.rv.read_i32().context("Failed to read file index")?;
-                trace!("Received index {}", idx);
-                if idx == -1 {
-                    break;
-                }
-                // TODO: Receive and act on the per-file message.
-            }
+                .context("Failed to send phase transition")?;
+            let idx = self
+                .rv
+                .read_i32()
+                .context("Failed to read phase transition")?;
+            assert_eq!(idx, -1);
         }
 
         debug!("Send end of sequence");
@@ -175,27 +177,78 @@ impl Connection {
         Ok((file_list, server_stats))
     }
 
-    /// Produce a generator request for the first file in the list, as if it
-    /// doesn't exist locally.
-    fn generate_one_file(&mut self, file_list: &[FileEntry]) -> Result<()> {
+    /// Download all regular files.
+    ///
+    /// Includes sending requests for them (with no basis) and receiving the data.
+    fn transfer_files(&mut self, file_list: &[FileEntry]) -> Result<()> {
         // compare to `recv_generator` in generator.c.
 
         assert!(!file_list.is_empty());
-        for (idx, entry) in file_list.iter().filter(|e| e.is_file()).enumerate().take(1) {
+        for (idx, entry) in file_list.iter().enumerate().filter(|(_idx, e)| e.is_file()) {
             debug!(
                 "Send request for file idx {}, name {:?}",
                 idx,
                 entry.name_lossy_string()
             );
-            self.wv.write_i32(idx.try_into().unwrap())?; // index
+            self.wv.write_i32(idx.try_into().unwrap())?;
 
-            // Like write_sum_head.
-            self.wv.write_i32(0)?; // count
-            self.wv.write_i32(0)?; // blength
-            self.wv.write_i32(0)?; // s2length
-            self.wv.write_i32(0)?; // remainder
+            SumHead::zero().write(&mut self.wv)?;
+
+            // TODO: Don't count on the sender giving back one file for every
+            // one that we request.
+            //
+            // Files normally return in the order we request them. But
+            // if the sender fails to open the file, it just doesn't send any
+            // message, it just continues to the next one. So blocking for input
+            // here can get hung up.
+
+            let remote_idx: usize = self.rv.read_i32()?.try_into().unwrap();
+            assert_eq!(remote_idx, idx);
+            // TODO: Clean error if the index is out of range?
+            self.receive_file(&file_list[remote_idx])?;
         }
+        Ok(())
+    }
 
+    fn receive_file(&mut self, entry: &FileEntry) -> Result<()> {
+        // Like |receive_data|.
+        debug!("Receive content for {:?}", entry.name_lossy_string());
+        let sums = SumHead::read(&mut self.rv)?;
+        debug!("Got sums: {:?}", sums);
+        let mut hasher = Md4::new();
+        hasher.input(&self.checksum_seed.to_le_bytes());
+        loop {
+            // TODO: Specially handle data for deflate mode.
+            // Like |simple_recv_token|.
+            let t = self.rv.read_i32()?;
+            if t == 0 {
+                break;
+            } else if t < 0 {
+                todo!("Block copy reference")
+            } else {
+                let content = self.rv.read_byte_string(t.try_into().unwrap())?;
+                trace!(
+                    "Got literal {} byte token: {:#?}...",
+                    t,
+                    String::from_utf8_lossy(&content[..100])
+                );
+                hasher.input(content);
+                // TODO: Write it to the local tree.
+            }
+        }
+        let remote_md4 = self.rv.read_byte_string(crate::MD4_SUM_LENGTH)?;
+        let local_md4 = hasher.result();
+        if local_md4[..] != remote_md4[..] {
+            // TODO: Remember the error, but don't bail out. Try again in phase 2.
+            error!(
+                "MD4 mismatch for {:?}: sender {}, receiver {}",
+                entry.name_lossy_string(),
+                hex::encode(remote_md4),
+                hex::encode(local_md4)
+            );
+        } else {
+            debug!("Received matching file MD4 {}", hex::encode(&remote_md4));
+        }
         Ok(())
     }
 
@@ -208,7 +261,7 @@ impl Connection {
             rv,
             wv,
             protocol_version: _,
-            salt: _,
+            checksum_seed: _,
             mut child,
             options: _,
         } = self;
@@ -247,5 +300,44 @@ impl Connection {
                 None
             },
         })
+    }
+}
+
+#[derive(Debug)]
+struct SumHead {
+    // like rsync |sum_struct|.
+    count: i32,
+    blength: i32,
+    s2length: i32,
+    remainder: i32,
+}
+
+impl SumHead {
+    pub fn zero() -> Self {
+        SumHead {
+            count: 0,
+            blength: 0,
+            s2length: 0,
+            remainder: 0,
+        }
+    }
+
+    pub fn read(rv: &mut ReadVarint) -> Result<Self> {
+        // TODO: Encoding varies per protocol version.
+        // TODO: Assertions about the values?
+        Ok(SumHead {
+            count: rv.read_i32()?,
+            blength: rv.read_i32()?,
+            s2length: rv.read_i32()?,
+            remainder: rv.read_i32()?,
+        })
+    }
+
+    pub fn write(&self, wv: &mut WriteVarint) -> Result<()> {
+        wv.write_i32(self.count)?;
+        wv.write_i32(self.blength)?;
+        wv.write_i32(self.s2length)?;
+        wv.write_i32(self.remainder)?;
+        Ok(())
     }
 }

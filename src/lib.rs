@@ -53,6 +53,7 @@ mod flist;
 mod mux;
 mod options;
 mod statistics;
+mod sums;
 mod varint;
 
 pub use client::Client;

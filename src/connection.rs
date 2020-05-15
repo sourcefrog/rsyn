@@ -30,6 +30,7 @@ use md4::{Digest, Md4};
 
 use crate::flist::{read_file_list, FileEntry, FileList};
 use crate::mux::DemuxRead;
+use crate::sums::SumHead;
 use crate::varint::{ReadVarint, WriteVarint};
 use crate::{Options, ServerStatistics};
 
@@ -300,44 +301,5 @@ impl Connection {
                 None
             },
         })
-    }
-}
-
-#[derive(Debug)]
-struct SumHead {
-    // like rsync |sum_struct|.
-    count: i32,
-    blength: i32,
-    s2length: i32,
-    remainder: i32,
-}
-
-impl SumHead {
-    pub fn zero() -> Self {
-        SumHead {
-            count: 0,
-            blength: 0,
-            s2length: 0,
-            remainder: 0,
-        }
-    }
-
-    pub fn read(rv: &mut ReadVarint) -> Result<Self> {
-        // TODO: Encoding varies per protocol version.
-        // TODO: Assertions about the values?
-        Ok(SumHead {
-            count: rv.read_i32()?,
-            blength: rv.read_i32()?,
-            s2length: rv.read_i32()?,
-            remainder: rv.read_i32()?,
-        })
-    }
-
-    pub fn write(&self, wv: &mut WriteVarint) -> Result<()> {
-        wv.write_i32(self.count)?;
-        wv.write_i32(self.blength)?;
-        wv.write_i32(self.s2length)?;
-        wv.write_i32(self.remainder)?;
-        Ok(())
     }
 }

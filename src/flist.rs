@@ -14,7 +14,6 @@
 
 //! File lists and entries.
 
-use std::cmp::Ordering;
 use std::convert::TryInto;
 use std::fmt;
 
@@ -41,7 +40,7 @@ type ByteString = Vec<u8>;
 ///
 /// The `Display` trait formats an entry like in `ls -l`, and like in rsync
 /// directory listings.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FileEntry {
     // Corresponds to rsync |file_struct|.
     /// Name of this file, as a byte string.
@@ -215,20 +214,20 @@ fn receive_file_entry(
     }))
 }
 
-/// Compare two entry names, in the protocol 27 sort.
-///
-/// The rsync code is complex but seems to reduce to a strcmp for names
-/// that actually occur, once you cancel
-/// out the somewhat complicated sharing of string parts.
-fn filename_compare_27(a: &[u8], b: &[u8]) -> Ordering {
-    a.cmp(&b)
-}
-
 pub(crate) fn sort(file_list: &mut [FileEntry]) {
     // Compare to rsync `file_compare`.
-    // TODO: Clean the list of duplicates, like in rsync `clean_flist`.
-    file_list.sort_by(|a, b| filename_compare_27(&a.name, &b.name));
+
+    // In the rsync protocol the receiver gets a list of files from the server in
+    // arbitrary order, and then is required to sort them into the same order
+    // as the server, so they can use the same index numbers to refer to identify
+    // files. (It's a bit strange.)
+    //
+    // The ordering varies per protocol version but in protocol 27 it's essentially
+    // strcmp. (The rsync code is a bit complicated by storing the names split
+    // into directory and filename.)
+    file_list.sort_unstable_by(|a, b| a.name.cmp(&b.name));
     debug!("File list sort done");
+    // TODO: Clean the list of duplicates, like in rsync `clean_flist`.
     for (i, entry) in file_list.iter().enumerate() {
         debug!("[{:8}] {:?}", i, entry.name_lossy_string())
     }
@@ -282,10 +281,19 @@ mod test {
             b"src/",
             b"src/lib.rs",
         ];
-        for (i, a) in EXAMPLE.iter().enumerate() {
-            for (j, b) in EXAMPLE.iter().enumerate() {
-                assert_eq!(filename_compare_27(a, b), i.cmp(&j))
-            }
-        }
+        let sorted: Vec<FileEntry> = EXAMPLE
+            .iter()
+            .map(|name| FileEntry {
+                mode: 0o0040750,
+                file_len: 420,
+                mtime: 1588429517,
+                name: name.to_vec(),
+                link_target: None,
+            })
+            .collect();
+        let mut reversed = sorted.clone();
+        reversed.reverse();
+        sort(reversed.as_mut_slice());
+        assert_eq!(&reversed, &sorted);
     }
 }

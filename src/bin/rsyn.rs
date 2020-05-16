@@ -14,13 +14,13 @@
 
 //! Command-line program for rsyn, an rsync client in Rust.
 
-use std::fmt;
+// use std::fmt;
 use std::path::PathBuf;
 
-use anyhow::Context;
-#[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
+// use anyhow::Context;
 use structopt::StructOpt;
+#[allow(unused_imports)]
+use tracing::{debug, error, info, trace, warn, Level};
 
 use rsyn::{Client, Options, Result};
 
@@ -93,43 +93,22 @@ fn main() -> Result<()> {
 // Configure the logger: send everything to the log file (if there is one), and
 // send info and above to the console.
 fn configure_logging(opt: &Opt) -> Result<()> {
-    let mut to_file = fern::Dispatch::new()
-        .level(log::LevelFilter::Debug)
-        .format(format_log);
-    if let Some(ref log_file) = opt.log_file {
-        to_file = to_file.chain(fern::log_file(log_file).context("Failed to open log file")?);
-    }
-
     let console_level = match opt.verbose {
-        0 => log::LevelFilter::Warn,
-        1 => log::LevelFilter::Info,
-        2 => log::LevelFilter::Debug,
-        _ => log::LevelFilter::Trace,
+        0 => tracing::Level::WARN,
+        1 => tracing::Level::INFO,
+        2 => tracing::Level::DEBUG,
+        _ => tracing::Level::TRACE,
     };
-    let to_console = fern::Dispatch::new()
-        .format(|out, message, record| {
-            out.finish(format_args!("[{:<8}] {}", record.level(), message))
-        })
-        .level(console_level)
-        .chain(std::io::stderr());
 
-    fern::Dispatch::new()
-        .chain(to_console)
-        .chain(to_file)
-        .apply()
-        .expect("Failed to configure logger");
+    tracing_subscriber::fmt()
+        .with_max_level(console_level)
+        .with_writer(std::io::stderr)
+        .init();
+
+    // TODO: tracing currently can't support different levels per destination, and logging to a
+    // file is confusing so also unsupported.
+
     Ok(())
-}
-
-/// Format a `log::Record`.
-fn format_log(out: fern::FormatCallback<'_>, args: &fmt::Arguments<'_>, record: &log::Record<'_>) {
-    out.finish(format_args!(
-        "[{}] [{:<30}][{}] {}",
-        chrono::Local::now().format("%m-%d %H:%M:%S"),
-        record.target(),
-        record.level().to_string().chars().next().unwrap(),
-        args
-    ))
 }
 
 #[cfg(test)]

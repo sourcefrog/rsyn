@@ -16,7 +16,7 @@
 //!
 //! This requires 'rsync' be available on the path.
 
-use std::fmt;
+// use std::fmt;
 use std::fs::{create_dir, File};
 
 use anyhow::Result;
@@ -154,20 +154,4 @@ fn install_test_logger() {
     // The global logger can only be installed once per process, but this'll be called for
     // many tests within the same process. They all try to install the same thing, so don't
     // worry if it fails.
-
-    let _ = fern::Dispatch::new()
-        .format(format_log)
-        .level(log::LevelFilter::Debug)
-        .chain(fern::Output::call(|record| println!("{}", record.args())))
-        .apply();
-}
-
-/// Format a `log::Record`.
-fn format_log(out: fern::FormatCallback<'_>, args: &fmt::Arguments<'_>, record: &log::Record<'_>) {
-    out.finish(format_args!(
-        "[{:<30}][{}] {}",
-        record.target(),
-        record.level().to_string().chars().next().unwrap(),
-        args
-    ))
 }

@@ -23,11 +23,11 @@ use log::{debug, error, info, trace, warn};
 
 /// Read rsync data types from a wrapped stream.
 pub struct ReadVarint {
-    r: Box<dyn Read>,
+    r: Box<dyn Read + Send>,
 }
 
 impl ReadVarint {
-    pub fn new(r: Box<dyn Read>) -> ReadVarint {
+    pub fn new(r: Box<dyn Read + Send>) -> ReadVarint {
         ReadVarint { r }
     }
 
@@ -36,6 +36,9 @@ impl ReadVarint {
         self.r.read_exact(&mut b).and(Ok(b[0]))
     }
 
+    /// Read a known-length byte string into a newly allocated buffer.
+    ///
+    /// Always returns the exact size, or an error.
     pub fn read_byte_string(&mut self, len: usize) -> io::Result<Vec<u8>> {
         let mut buf = vec![0; len];
         self.r.read_exact(&mut buf).and(Ok(buf))
@@ -45,7 +48,7 @@ impl ReadVarint {
         let mut buf = [0; 4];
         self.r.read_exact(&mut buf)?;
         let v = i32::from_le_bytes(buf);
-        // debug!("Read {:#010x}", v);
+        trace!("Read {:#x}i32", v);
         Ok(v)
     }
 
@@ -58,12 +61,12 @@ impl ReadVarint {
             self.r.read_exact(&mut buf)?;
             i64::from_le_bytes(buf)
         };
-        // debug!("Read {:#020x}", v);
+        trace!("Read {:#x}i64", v);
         Ok(v)
     }
 
     /// Return the underlying stream, consuming this wrapper.
-    pub fn take(self) -> Box<dyn Read> {
+    pub fn take(self) -> Box<dyn Read + Send> {
         self.r
     }
 
@@ -84,22 +87,22 @@ impl ReadVarint {
 
 /// Write rsync low-level protocol variable integers.
 pub struct WriteVarint {
-    w: Box<dyn io::Write>,
+    w: Box<dyn io::Write + Send>,
 }
 
 impl WriteVarint {
-    pub fn new(w: Box<dyn io::Write>) -> WriteVarint {
+    pub fn new(w: Box<dyn io::Write + Send>) -> WriteVarint {
         WriteVarint { w }
     }
 
     pub fn write_i32(&mut self, v: i32) -> io::Result<()> {
-        // debug!("Send {:#010x}", v);
+        trace!("Send {:#x}i32", v);
         self.w.write_all(&v.to_le_bytes())
     }
 
     #[allow(unused)]
     pub fn write_u8(&mut self, v: u8) -> io::Result<()> {
-        // debug!("Send {:#04x}", v);
+        trace!("Send {:#x}u8", v);
         self.w.write_all(&[v])
     }
 }

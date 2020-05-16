@@ -16,6 +16,7 @@
 
 #![allow(unused_imports)]
 
+use std::convert::TryInto;
 use std::io;
 use std::io::prelude::*;
 use std::io::ErrorKind;
@@ -23,11 +24,14 @@ use std::path::Path;
 use std::process::{Child, Command, Stdio};
 
 use anyhow::{bail, Context, Result};
+use crossbeam::thread;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use md4::{Digest, Md4};
 
-use crate::flist::{read_file_list, FileList};
+use crate::flist::{read_file_list, FileEntry, FileList};
 use crate::mux::DemuxRead;
+use crate::sums::SumHead;
 use crate::varint::{ReadVarint, WriteVarint};
 use crate::{Options, ServerStatistics};
 
@@ -44,12 +48,15 @@ pub(crate) struct Connection {
     /// Mutually-agreed rsync protocol version number.
     protocol_version: i32,
 
-    #[allow(unused)]
-    salt: i32,
+    /// Permutation to checksums, pushed as a le i32 at the start of file MD4s.
+    checksum_seed: i32,
 
+    /// The child process carrying this connection.
     child: Child,
 
-    #[allow(unused)]
+    /// Connection options, corresponding to a subset of rsync command-line options.
+    ///
+    /// The options affect which fields are present or not on the wire.
     options: Options,
 }
 
@@ -58,8 +65,8 @@ impl Connection {
     ///
     /// The public interface is through `Client`.
     pub(crate) fn handshake(
-        r: Box<dyn Read>,
-        w: Box<dyn Write>,
+        r: Box<dyn Read + Send>,
+        w: Box<dyn Write + Send>,
         child: Child,
         options: Options,
     ) -> Result<Connection> {
@@ -74,13 +81,14 @@ impl Connection {
                 remote_protocol_version
             );
         }
-        // The server and client agree to use the minimum supported version, which will now be
-        // ours.
+        // The server and client agree to use the minimum supported version,
+        // which will now be ours, because we refuse to accept anything
+        // older.
 
-        let salt = rv.read_i32().unwrap();
+        let checksum_seed = rv.read_i32().unwrap();
         debug!(
-            "Connected to server version {}, salt {:#x}",
-            remote_protocol_version, salt
+            "Connected to server version {}, checksum_seed {:#x}",
+            remote_protocol_version, checksum_seed
         );
         let protocol_version = std::cmp::min(MY_PROTOCOL_VERSION, remote_protocol_version);
         debug!("Agreed protocol version {}", protocol_version);
@@ -94,7 +102,7 @@ impl Connection {
             rv,
             wv,
             protocol_version,
-            salt,
+            checksum_seed,
             child,
             options,
         })
@@ -104,7 +112,11 @@ impl Connection {
     ///
     /// The file list is in the sorted order defined by the protocol, which
     /// is strcmp on the raw bytes of the names.
-    pub(crate) fn list_files(mut self) -> Result<(FileList, ServerStatistics)> {
+    pub(crate) fn list_files(self) -> Result<(FileList, ServerStatistics)> {
+        self.receive()
+    }
+
+    fn receive(mut self) -> Result<(FileList, ServerStatistics)> {
         // Analogous to rsync/receiver.c recv_files().
         // let max_phase = if self.protocol_version >= 29 { 2 } else { 1 };
         let max_phase = 2;
@@ -130,23 +142,22 @@ impl Connection {
         for phase in 1..=max_phase {
             debug!("Start phase {}", phase);
 
-            self.wv
-                .write_i32(-1)
-                .context("Failed to send phase transition")?; // end of phase 1
-
             // Server stops here if there were no files.
             if file_list.is_empty() {
                 info!("Server returned no files, so we're done");
+                // TODO: Maybe write one -1 here?
                 self.shutdown()?;
                 return Ok((file_list, ServerStatistics::default()));
             }
 
-            assert_eq!(
-                self.rv
-                    .read_i32()
-                    .context("Failed to read phase transition")?,
-                -1
-            );
+            if phase == 1 && !self.options.list_only {
+                self.transfer_files(&file_list)?;
+            } else {
+                self.wv
+                    .write_i32(-1)
+                    .context("Failed to send phase transition")?;
+                assert_eq!(self.rv.read_i32()?, -1);
+            }
         }
 
         debug!("Send end of sequence");
@@ -164,6 +175,28 @@ impl Connection {
         Ok((file_list, server_stats))
     }
 
+    /// Download all regular files.
+    ///
+    /// Includes sending requests for them (with no basis) and receiving the data.
+    fn transfer_files(&mut self, file_list: &[FileEntry]) -> Result<()> {
+        // compare to `recv_generator` in generator.c.
+        assert!(!file_list.is_empty());
+        let rv = &mut self.rv;
+        let wv = &mut self.wv;
+        let checksum_seed = self.checksum_seed;
+        thread::scope(|scope| {
+            scope
+                .builder()
+                .name("rsyn_receiver".to_owned())
+                .spawn(|_| receive_offered_files(rv, checksum_seed, file_list))
+                .expect("Failed to spawn receiver thread");
+            generate_files(wv, file_list).unwrap();
+        })
+        .unwrap();
+        debug!("transfer_files done");
+        Ok(()) // TODO: Handle errors from threads correctly
+    }
+
     /// Shut down this connection, consuming the object.
     ///
     /// This isn't the drop method, because it only makes sense to do after
@@ -173,7 +206,7 @@ impl Connection {
             rv,
             wv,
             protocol_version: _,
-            salt: _,
+            checksum_seed: _,
             mut child,
             options: _,
         } = self;
@@ -213,4 +246,81 @@ impl Connection {
             },
         })
     }
+}
+
+fn generate_files(wv: &mut WriteVarint, file_list: &[FileEntry]) -> Result<()> {
+    for (idx, entry) in file_list.iter().enumerate().filter(|(_idx, e)| e.is_file()) {
+        debug!(
+            "Send request for file idx {}, name {:?}",
+            idx,
+            entry.name_lossy_string()
+        );
+        wv.write_i32(idx.try_into().unwrap())?;
+        SumHead::zero().write(wv)?;
+    }
+    debug!("Generator done");
+    wv.write_i32(-1)
+        .context("Failed to send phase transition")?;
+    Ok(())
+}
+
+fn receive_offered_files(
+    rv: &mut ReadVarint,
+    checksum_seed: i32,
+    file_list: &[FileEntry],
+) -> Result<()> {
+    // Files normally return in the order we request them. But
+    // if the sender fails to open the file, it just doesn't send any
+    // message, it just continues to the next one. So blocking for input
+    // here can get hung ulistp.
+
+    loop {
+        let remote_idx = rv.read_i32()?;
+        if remote_idx == -1 {
+            debug!("receiver done");
+            return Ok(());
+        }
+        let idx = remote_idx as usize;
+        if idx >= file_list.len() {
+            error!("Remote file index {} is out of range", remote_idx)
+        }
+        receive_file(rv, checksum_seed, &file_list[idx])?;
+    }
+}
+
+fn receive_file(rv: &mut ReadVarint, checksum_seed: i32, entry: &FileEntry) -> Result<()> {
+    // Like |receive_data|.
+    debug!("Receive content for {:?}", entry.name_lossy_string());
+    let sums = SumHead::read(rv)?;
+    debug!("Got sums: {:?}", sums);
+    let mut hasher = Md4::new();
+    hasher.input(checksum_seed.to_le_bytes());
+    loop {
+        // TODO: Specially handle data for deflate mode.
+        // Like |simple_recv_token|.
+        let t = rv.read_i32()?;
+        if t == 0 {
+            break;
+        } else if t < 0 {
+            todo!("Block copy reference")
+        } else {
+            let content = rv.read_byte_string(t.try_into().unwrap())?;
+            hasher.input(content);
+            // TODO: Write it to the local tree.
+        }
+    }
+    let remote_md4 = rv.read_byte_string(crate::MD4_SUM_LENGTH)?;
+    let local_md4 = hasher.result();
+    if local_md4[..] != remote_md4[..] {
+        // TODO: Remember the error, but don't bail out. Try again in phase 2.
+        error!(
+            "MD4 mismatch for {:?}: sender {}, receiver {}",
+            entry.name_lossy_string(),
+            hex::encode(remote_md4),
+            hex::encode(local_md4)
+        );
+    } else {
+        debug!("Received matching file MD4 {}", hex::encode(&remote_md4));
+    }
+    Ok(())
 }

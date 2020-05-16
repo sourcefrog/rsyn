@@ -23,6 +23,8 @@
 // MAYBE: warn(missing-doc-code-examples) but covering everything isn't a
 // priority yet.
 #![warn(intra_doc_link_resolution_failure)]
+// Match on Ord isn't any easier to read.
+#![allow(clippy::comparison_chain)]
 
 //! A wire-compatible rsync client in Rust.
 //!
@@ -51,6 +53,7 @@ mod flist;
 mod mux;
 mod options;
 mod statistics;
+mod sums;
 mod varint;
 
 pub use client::Client;
@@ -60,3 +63,5 @@ pub use statistics::ServerStatistics;
 
 /// General Result type from rsyn APIs.
 pub type Result<T> = anyhow::Result<T>;
+
+const MD4_SUM_LENGTH: usize = 16;

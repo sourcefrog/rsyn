@@ -136,13 +136,14 @@ impl fmt::Display for FileEntry {
 pub type FileList = Vec<FileEntry>;
 
 /// Read a file list off the wire, and return it in the order it was received.
-pub(crate) fn read_file_list(r: &mut ReadVarint) -> Result<FileList> {
+pub(crate) fn read_file_list(rv: &mut ReadVarint) -> Result<FileList> {
     // Corresponds to rsync |receive_file_entry|.
     // TODO: Support receipt of uid and gid with -o, -g.
     // TODO: Support devices, links, etc.
+    // TODO: Sort order changes in different protocol versions.
 
     let mut v: Vec<FileEntry> = Vec::new();
-    while let Some(entry) = receive_file_entry(r, v.last())? {
+    while let Some(entry) = receive_file_entry(rv, v.last())? {
         v.push(entry)
     }
     debug!("End of file list");
@@ -150,10 +151,10 @@ pub(crate) fn read_file_list(r: &mut ReadVarint) -> Result<FileList> {
 }
 
 fn receive_file_entry(
-    r: &mut ReadVarint,
+    rv: &mut ReadVarint,
     previous: Option<&FileEntry>,
 ) -> Result<Option<FileEntry>> {
-    let status = r
+    let status = rv
         .read_u8()
         .context("Failed to read file entry status byte")?;
     trace!("File list status {:#x}", status);
@@ -162,17 +163,18 @@ fn receive_file_entry(
     }
 
     let inherit_name_bytes = if (status & STATUS_REPEAT_PARTIAL_NAME) != 0 {
-        r.read_u8().context("Failed to read inherited name bytes")? as usize
+        rv.read_u8()
+            .context("Failed to read inherited name bytes")? as usize
     } else {
         0
     };
 
     let name_len = if status & STATUS_LONG_NAME != 0 {
-        r.read_i32()? as usize
+        rv.read_i32()? as usize
     } else {
-        r.read_u8()? as usize
+        rv.read_u8()? as usize
     };
-    let mut name = r.read_byte_string(name_len)?;
+    let mut name = rv.read_byte_string(name_len)?;
     if inherit_name_bytes > 0 {
         let mut new_name = previous.unwrap().name.clone();
         new_name.truncate(inherit_name_bytes);
@@ -182,21 +184,21 @@ fn receive_file_entry(
     trace!("  filename: {:?}", String::from_utf8_lossy(&name));
     assert!(!name.is_empty());
 
-    let file_len: u64 = r
+    let file_len: u64 = rv
         .read_i64()?
         .try_into()
         .context("Received negative file_len")?;
     trace!("  file_len: {}", file_len);
 
     let mtime = if status & STATUS_REPEAT_MTIME == 0 {
-        r.read_i32()? as u32
+        rv.read_i32()? as u32
     } else {
         previous.unwrap().mtime
     };
     trace!("  mtime: {}", mtime);
 
     let mode = if status & STATUS_REPEAT_MODE == 0 {
-        r.read_i32()? as u32
+        rv.read_i32()? as u32
     } else {
         previous.unwrap().mode
     };

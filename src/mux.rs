@@ -31,7 +31,7 @@ const TAG_FATAL: u8 = 1;
 
 pub struct DemuxRead {
     /// Underlying stream.
-    r: Box<dyn Read>,
+    r: Box<dyn Read + Send>,
     /// Amount of data from previous packet remaining to read out.
     current_packet_len: usize,
 }
@@ -51,7 +51,7 @@ impl Read for DemuxRead {
 impl DemuxRead {
     /// Construct a new packet demuxer, wrapping an underlying Read (typically
     /// a pipe).
-    pub fn new(r: Box<dyn Read>) -> DemuxRead {
+    pub fn new(r: Box<dyn Read + Send>) -> DemuxRead {
         DemuxRead {
             r,
             current_packet_len: 0,
@@ -116,12 +116,12 @@ impl DemuxRead {
 /// at the moment rsyn only acts as a client, so this is never used.
 #[allow(unused)]
 pub struct MuxWrite {
-    w: Box<dyn Write>,
+    w: Box<dyn Write + Send>,
 }
 
 impl MuxWrite {
     #[allow(unused)]
-    pub fn new(w: Box<dyn Write>) -> MuxWrite {
+    pub fn new(w: Box<dyn Write + Send>) -> MuxWrite {
         MuxWrite { w }
     }
 }

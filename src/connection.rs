@@ -24,6 +24,7 @@ use std::path::Path;
 use std::process::{Child, Command, Stdio};
 
 use anyhow::{bail, Context, Result};
+use crossbeam::thread;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use md4::{Digest, Md4};
@@ -64,8 +65,8 @@ impl Connection {
     ///
     /// The public interface is through `Client`.
     pub(crate) fn handshake(
-        r: Box<dyn Read>,
-        w: Box<dyn Write>,
+        r: Box<dyn Read + Send>,
+        w: Box<dyn Write + Send>,
         child: Child,
         options: Options,
     ) -> Result<Connection> {
@@ -151,16 +152,12 @@ impl Connection {
 
             if phase == 1 && !self.options.list_only {
                 self.transfer_files(&file_list)?;
+            } else {
+                self.wv
+                    .write_i32(-1)
+                    .context("Failed to send phase transition")?;
+                assert_eq!(self.rv.read_i32()?, -1);
             }
-
-            self.wv
-                .write_i32(-1)
-                .context("Failed to send phase transition")?;
-            let idx = self
-                .rv
-                .read_i32()
-                .context("Failed to read phase transition")?;
-            assert_eq!(idx, -1);
         }
 
         debug!("Send end of sequence");
@@ -183,74 +180,21 @@ impl Connection {
     /// Includes sending requests for them (with no basis) and receiving the data.
     fn transfer_files(&mut self, file_list: &[FileEntry]) -> Result<()> {
         // compare to `recv_generator` in generator.c.
-
         assert!(!file_list.is_empty());
-        for (idx, entry) in file_list.iter().enumerate().filter(|(_idx, e)| e.is_file()) {
-            debug!(
-                "Send request for file idx {}, name {:?}",
-                idx,
-                entry.name_lossy_string()
-            );
-            self.wv.write_i32(idx.try_into().unwrap())?;
-
-            SumHead::zero().write(&mut self.wv)?;
-
-            // TODO: Don't count on the sender giving back one file for every
-            // one that we request.
-            //
-            // Files normally return in the order we request them. But
-            // if the sender fails to open the file, it just doesn't send any
-            // message, it just continues to the next one. So blocking for input
-            // here can get hung up.
-
-            let remote_idx: usize = self.rv.read_i32()?.try_into().unwrap();
-            assert_eq!(remote_idx, idx);
-            // TODO: Clean error if the index is out of range?
-            self.receive_file(&file_list[remote_idx])?;
-        }
-        Ok(())
-    }
-
-    fn receive_file(&mut self, entry: &FileEntry) -> Result<()> {
-        // Like |receive_data|.
-        debug!("Receive content for {:?}", entry.name_lossy_string());
-        let sums = SumHead::read(&mut self.rv)?;
-        debug!("Got sums: {:?}", sums);
-        let mut hasher = Md4::new();
-        hasher.input(&self.checksum_seed.to_le_bytes());
-        loop {
-            // TODO: Specially handle data for deflate mode.
-            // Like |simple_recv_token|.
-            let t = self.rv.read_i32()?;
-            if t == 0 {
-                break;
-            } else if t < 0 {
-                todo!("Block copy reference")
-            } else {
-                let content = self.rv.read_byte_string(t.try_into().unwrap())?;
-                trace!(
-                    "Got literal {} byte token: {:#?}...",
-                    t,
-                    String::from_utf8_lossy(&content[..100])
-                );
-                hasher.input(content);
-                // TODO: Write it to the local tree.
-            }
-        }
-        let remote_md4 = self.rv.read_byte_string(crate::MD4_SUM_LENGTH)?;
-        let local_md4 = hasher.result();
-        if local_md4[..] != remote_md4[..] {
-            // TODO: Remember the error, but don't bail out. Try again in phase 2.
-            error!(
-                "MD4 mismatch for {:?}: sender {}, receiver {}",
-                entry.name_lossy_string(),
-                hex::encode(remote_md4),
-                hex::encode(local_md4)
-            );
-        } else {
-            debug!("Received matching file MD4 {}", hex::encode(&remote_md4));
-        }
-        Ok(())
+        let rv = &mut self.rv;
+        let wv = &mut self.wv;
+        let checksum_seed = self.checksum_seed;
+        thread::scope(|scope| {
+            scope
+                .builder()
+                .name("rsyn_receiver".to_owned())
+                .spawn(|_| receive_offered_files(rv, checksum_seed, file_list))
+                .expect("Failed to spawn receiver thread");
+            generate_files(wv, file_list).unwrap();
+        })
+        .unwrap();
+        debug!("transfer_files done");
+        Ok(()) // TODO: Handle errors from threads correctly
     }
 
     /// Shut down this connection, consuming the object.
@@ -302,4 +246,81 @@ impl Connection {
             },
         })
     }
+}
+
+fn generate_files(wv: &mut WriteVarint, file_list: &[FileEntry]) -> Result<()> {
+    for (idx, entry) in file_list.iter().enumerate().filter(|(_idx, e)| e.is_file()) {
+        debug!(
+            "Send request for file idx {}, name {:?}",
+            idx,
+            entry.name_lossy_string()
+        );
+        wv.write_i32(idx.try_into().unwrap())?;
+        SumHead::zero().write(wv)?;
+    }
+    debug!("Generator done");
+    wv.write_i32(-1)
+        .context("Failed to send phase transition")?;
+    Ok(())
+}
+
+fn receive_offered_files(
+    rv: &mut ReadVarint,
+    checksum_seed: i32,
+    file_list: &[FileEntry],
+) -> Result<()> {
+    // Files normally return in the order we request them. But
+    // if the sender fails to open the file, it just doesn't send any
+    // message, it just continues to the next one. So blocking for input
+    // here can get hung ulistp.
+
+    loop {
+        let remote_idx = rv.read_i32()?;
+        if remote_idx == -1 {
+            debug!("receiver done");
+            return Ok(());
+        }
+        let idx = remote_idx as usize;
+        if idx >= file_list.len() {
+            error!("Remote file index {} is out of range", remote_idx)
+        }
+        receive_file(rv, checksum_seed, &file_list[idx])?;
+    }
+}
+
+fn receive_file(rv: &mut ReadVarint, checksum_seed: i32, entry: &FileEntry) -> Result<()> {
+    // Like |receive_data|.
+    debug!("Receive content for {:?}", entry.name_lossy_string());
+    let sums = SumHead::read(rv)?;
+    debug!("Got sums: {:?}", sums);
+    let mut hasher = Md4::new();
+    hasher.input(checksum_seed.to_le_bytes());
+    loop {
+        // TODO: Specially handle data for deflate mode.
+        // Like |simple_recv_token|.
+        let t = rv.read_i32()?;
+        if t == 0 {
+            break;
+        } else if t < 0 {
+            todo!("Block copy reference")
+        } else {
+            let content = rv.read_byte_string(t.try_into().unwrap())?;
+            hasher.input(content);
+            // TODO: Write it to the local tree.
+        }
+    }
+    let remote_md4 = rv.read_byte_string(crate::MD4_SUM_LENGTH)?;
+    let local_md4 = hasher.result();
+    if local_md4[..] != remote_md4[..] {
+        // TODO: Remember the error, but don't bail out. Try again in phase 2.
+        error!(
+            "MD4 mismatch for {:?}: sender {}, receiver {}",
+            entry.name_lossy_string(),
+            hex::encode(remote_md4),
+            hex::encode(local_md4)
+        );
+    } else {
+        debug!("Received matching file MD4 {}", hex::encode(&remote_md4));
+    }
+    Ok(())
 }

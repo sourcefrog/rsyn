@@ -23,11 +23,11 @@ use log::{debug, error, info, trace, warn};
 
 /// Read rsync data types from a wrapped stream.
 pub struct ReadVarint {
-    r: Box<dyn Read>,
+    r: Box<dyn Read + Send>,
 }
 
 impl ReadVarint {
-    pub fn new(r: Box<dyn Read>) -> ReadVarint {
+    pub fn new(r: Box<dyn Read + Send>) -> ReadVarint {
         ReadVarint { r }
     }
 
@@ -66,7 +66,7 @@ impl ReadVarint {
     }
 
     /// Return the underlying stream, consuming this wrapper.
-    pub fn take(self) -> Box<dyn Read> {
+    pub fn take(self) -> Box<dyn Read + Send> {
         self.r
     }
 
@@ -87,11 +87,11 @@ impl ReadVarint {
 
 /// Write rsync low-level protocol variable integers.
 pub struct WriteVarint {
-    w: Box<dyn io::Write>,
+    w: Box<dyn io::Write + Send>,
 }
 
 impl WriteVarint {
-    pub fn new(w: Box<dyn io::Write>) -> WriteVarint {
+    pub fn new(w: Box<dyn io::Write + Send>) -> WriteVarint {
         WriteVarint { w }
     }
 

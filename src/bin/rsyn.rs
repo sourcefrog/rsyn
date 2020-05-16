@@ -14,10 +14,10 @@
 
 //! Command-line program for rsyn, an rsync client in Rust.
 
-use std::fmt;
 use std::path::PathBuf;
 
 use anyhow::Context;
+use fern::colors::{Color, ColoredLevelConfig};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use structopt::StructOpt;
@@ -93,13 +93,27 @@ fn main() -> Result<()> {
 // Configure the logger: send everything to the log file (if there is one), and
 // send info and above to the console.
 fn configure_logging(opt: &Opt) -> Result<()> {
-    let mut to_file = fern::Dispatch::new()
-        .level(log::LevelFilter::Debug)
-        .format(format_log);
+    // TODO: Maybe an option to turn this up to 'trace' verbosity? It's a bit
+    // loud to have on by default.
+    let mut to_file =
+        fern::Dispatch::new()
+            .level(log::LevelFilter::Debug)
+            .format(move |out, message, record| {
+                out.finish(format_args!(
+                    "[{}] [{:<6}] [{:<20}] {}",
+                    chrono::Local::now().format("%b %d %H:%M:%S%.3f"),
+                    record.level(),
+                    record.target(),
+                    message,
+                ))
+            });
     if let Some(ref log_file) = opt.log_file {
         to_file = to_file.chain(fern::log_file(log_file).context("Failed to open log file")?);
     }
 
+    let colors = ColoredLevelConfig::new()
+        .debug(Color::Cyan)
+        .trace(Color::Magenta);
     let console_level = match opt.verbose {
         0 => log::LevelFilter::Warn,
         1 => log::LevelFilter::Info,
@@ -107,8 +121,13 @@ fn configure_logging(opt: &Opt) -> Result<()> {
         _ => log::LevelFilter::Trace,
     };
     let to_console = fern::Dispatch::new()
-        .format(|out, message, record| {
-            out.finish(format_args!("[{:<8}] {}", record.level(), message))
+        .format(move |out, message, record| {
+            out.finish(format_args!(
+                "[{:<6}] {}: {}",
+                colors.color(record.level()),
+                record.target(),
+                message
+            ))
         })
         .level(console_level)
         .chain(std::io::stderr());
@@ -119,17 +138,6 @@ fn configure_logging(opt: &Opt) -> Result<()> {
         .apply()
         .expect("Failed to configure logger");
     Ok(())
-}
-
-/// Format a `log::Record`.
-fn format_log(out: fern::FormatCallback<'_>, args: &fmt::Arguments<'_>, record: &log::Record<'_>) {
-    out.finish(format_args!(
-        "[{}] [{:<30}][{}] {}",
-        chrono::Local::now().format("%m-%d %H:%M:%S"),
-        record.target(),
-        record.level().to_string().chars().next().unwrap(),
-        args
-    ))
 }
 
 #[cfg(test)]

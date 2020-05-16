@@ -123,8 +123,7 @@ impl Connection {
 
         // send exclusion list length of 0
         self.send_exclusions()?;
-        let mut file_list = read_file_list(&mut self.rv)?;
-        crate::flist::sort(&mut file_list);
+        let file_list = read_file_list(&mut self.rv)?;
         // TODO: With -o, get uid list.
         // TODO: With -g, get gid list.
 

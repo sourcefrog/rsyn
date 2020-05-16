@@ -134,19 +134,20 @@ impl fmt::Display for FileEntry {
 /// A list of files returned from a server.
 pub type FileList = Vec<FileEntry>;
 
-/// Read a file list off the wire, and return it in the order it was received.
+/// Reads a file list, and then cleans and sorts it.
 pub(crate) fn read_file_list(rv: &mut ReadVarint) -> Result<FileList> {
     // Corresponds to rsync |receive_file_entry|.
     // TODO: Support receipt of uid and gid with -o, -g.
     // TODO: Support devices, links, etc.
     // TODO: Sort order changes in different protocol versions.
 
-    let mut v: Vec<FileEntry> = Vec::new();
-    while let Some(entry) = receive_file_entry(rv, v.last())? {
-        v.push(entry)
+    let mut file_list = Vec::new();
+    while let Some(entry) = receive_file_entry(rv, file_list.last())? {
+        file_list.push(entry)
     }
     debug!("End of file list");
-    Ok(v)
+    sort_and_dedupe(&mut file_list);
+    Ok(file_list)
 }
 
 fn receive_file_entry(
@@ -214,7 +215,7 @@ fn receive_file_entry(
     }))
 }
 
-pub(crate) fn sort(file_list: &mut [FileEntry]) {
+fn sort_and_dedupe(file_list: &mut Vec<FileEntry>) {
     // Compare to rsync `file_compare`.
 
     // In the rsync protocol the receiver gets a list of files from the server in
@@ -227,7 +228,12 @@ pub(crate) fn sort(file_list: &mut [FileEntry]) {
     // into directory and filename.)
     file_list.sort_unstable_by(|a, b| a.name.cmp(&b.name));
     debug!("File list sort done");
-    // TODO: Clean the list of duplicates, like in rsync `clean_flist`.
+    let len_before = file_list.len();
+    file_list.dedup_by(|a, b| a.name == b.name);
+    let removed = len_before - file_list.len();
+    if removed > 0 {
+        debug!("{} duplicate file list entries removed", removed)
+    }
     for (i, entry) in file_list.iter().enumerate() {
         debug!("[{:8}] {:?}", i, entry.name_lossy_string())
     }
@@ -281,7 +287,7 @@ mod test {
             b"src/",
             b"src/lib.rs",
         ];
-        let sorted: Vec<FileEntry> = EXAMPLE
+        let clean: Vec<FileEntry> = EXAMPLE
             .iter()
             .map(|name| FileEntry {
                 mode: 0o0040750,
@@ -291,9 +297,10 @@ mod test {
                 link_target: None,
             })
             .collect();
-        let mut reversed = sorted.clone();
-        reversed.reverse();
-        sort(reversed.as_mut_slice());
-        assert_eq!(&reversed, &sorted);
+        let mut messy = clean.clone();
+        messy.reverse();
+        messy.extend_from_slice(clean.as_slice());
+        sort_and_dedupe(&mut messy);
+        assert_eq!(&messy, &clean);
     }
 }

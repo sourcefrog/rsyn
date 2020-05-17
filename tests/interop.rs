@@ -21,7 +21,6 @@ use std::fs::{create_dir, File};
 
 use anyhow::Result;
 use chrono::prelude::*;
-use tempdir::TempDir;
 
 use rsyn::{Client, Options};
 
@@ -30,7 +29,10 @@ use rsyn::{Client, Options};
 fn list_files() {
     install_test_logger();
 
-    let tmp = TempDir::new("rsyn_interop_list_files").unwrap();
+    let tmp = tempfile::Builder::new()
+        .prefix("rsyn_interop_list_files")
+        .tempdir()
+        .unwrap();
     File::create(tmp.path().join("a")).unwrap();
     File::create(tmp.path().join("b")).unwrap();
     create_dir(tmp.path().join("subdir")).unwrap();
@@ -82,7 +84,9 @@ fn list_files() {
 fn list_symlink() -> rsyn::Result<()> {
     install_test_logger();
 
-    let tmp = TempDir::new("rsyn_interop_list_symlink")?;
+    let tmp = tempfile::Builder::new()
+        .prefix("rsyn_interop_list_symlink")
+        .tempdir()?;
     std::os::unix::fs::symlink("dangling link", tmp.path().join("a link"))?;
 
     let mut client = Client::local(tmp.path());

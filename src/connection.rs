@@ -133,7 +133,6 @@ impl Connection {
                 .read_i32()
                 .context("Failed to read server error count")?;
             if io_error_count > 0 {
-                // TODO: Somehow make this, and other soft errors, observable to the API client.
                 warn!("Server reports {} IO errors", io_error_count);
             }
             summary.server_flist_io_error_count = io_error_count;

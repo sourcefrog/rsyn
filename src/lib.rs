@@ -50,6 +50,7 @@
 mod client;
 mod connection;
 mod flist;
+mod localtree;
 mod mux;
 mod options;
 mod statistics;
@@ -58,6 +59,7 @@ mod varint;
 
 pub use client::Client;
 pub use flist::{FileEntry, FileList};
+pub use localtree::LocalTree;
 pub use options::Options;
 pub use statistics::{ServerStatistics, Summary};
 

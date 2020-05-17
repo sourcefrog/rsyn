@@ -38,7 +38,7 @@ fn list_files() {
 
     let mut client = Client::local(tmp.path());
     client.set_recursive(true);
-    let (flist, stats) = client.list_files().unwrap();
+    let (flist, summary) = client.list_files().unwrap();
 
     assert_eq!(flist.len(), 5);
     let names: Vec<String> = flist
@@ -72,7 +72,7 @@ fn list_files() {
     assert!((now - flist[1].mtime()).num_minutes() < 5);
 
     // All the files are empty.
-    assert_eq!(stats.total_file_size, 0);
+    assert_eq!(summary.server_stats.total_file_size, 0);
 }
 
 /// Only on Unix, check we can list a directory containing a symlink, and see
@@ -87,7 +87,7 @@ fn list_symlink() -> rsyn::Result<()> {
 
     let mut client = Client::local(tmp.path());
     client.mut_options().list_only = true;
-    let (flist, _stats) = client.list_files()?;
+    let (flist, _summary) = client.list_files()?;
 
     assert_eq!(flist.len(), 2);
     assert_eq!(flist[0].name_lossy_string(), ".");
@@ -112,7 +112,7 @@ fn list_files_etc() -> Result<()> {
         list_only: true,
         ..Options::default()
     });
-    let (flist, _stats) = client.list_files()?;
+    let (flist, _summary) = client.list_files()?;
     assert_eq!(
         flist
             .iter()
@@ -136,7 +136,7 @@ fn list_files_dev() -> Result<()> {
         list_only: true,
         ..Options::default()
     });
-    let (flist, _stats) = client.list_files()?;
+    let (flist, _summary) = client.list_files()?;
     assert_eq!(
         flist
             .iter()

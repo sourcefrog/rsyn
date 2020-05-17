@@ -33,7 +33,7 @@ use crate::flist::{read_file_list, FileEntry, FileList};
 use crate::mux::DemuxRead;
 use crate::sums::SumHead;
 use crate::varint::{ReadVarint, WriteVarint};
-use crate::{Options, ServerStatistics};
+use crate::{Options, ServerStatistics, Summary};
 
 const MY_PROTOCOL_VERSION: i32 = 27;
 
@@ -112,14 +112,15 @@ impl Connection {
     ///
     /// The file list is in the sorted order defined by the protocol, which
     /// is strcmp on the raw bytes of the names.
-    pub(crate) fn list_files(self) -> Result<(FileList, ServerStatistics)> {
+    pub(crate) fn list_files(self) -> Result<(FileList, Summary)> {
         self.receive()
     }
 
-    fn receive(mut self) -> Result<(FileList, ServerStatistics)> {
+    fn receive(mut self) -> Result<(FileList, Summary)> {
         // Analogous to rsync/receiver.c recv_files().
         // let max_phase = if self.protocol_version >= 29 { 2 } else { 1 };
         let max_phase = 2;
+        let mut summary = Summary::default();
 
         send_empty_exclusions(&mut self.wv)?;
         let file_list = read_file_list(&mut self.rv)?;
@@ -135,20 +136,21 @@ impl Connection {
                 // TODO: Somehow make this, and other soft errors, observable to the API client.
                 warn!("Server reports {} IO errors", io_error_count);
             }
+            summary.server_flist_io_error_count = io_error_count;
         }
 
         // Server stops here if there were no files.
         if file_list.is_empty() {
             info!("Server returned no files, so we're done");
             // TODO: Maybe write one -1 here?
-            self.shutdown()?;
-            return Ok((file_list, ServerStatistics::default()));
+            self.shutdown(&mut summary)?;
+            return Ok((file_list, summary));
         }
 
         for phase in 1..=max_phase {
             debug!("Start phase {}", phase);
             if phase == 1 && !self.options.list_only {
-                self.receive_files(&file_list)?;
+                self.receive_files(&file_list, &mut summary)?;
             } else {
                 self.wv
                     .write_i32(-1)
@@ -162,19 +164,19 @@ impl Connection {
             .write_i32(-1)
             .context("Failed to send end-of-sequence marker")?;
         // TODO: In later versions (which?) read an end-of-sequence marker?
-        let server_stats = read_server_statistics(&mut self.rv, self.protocol_version)
+        summary.server_stats = read_server_statistics(&mut self.rv, self.protocol_version)
             .context("Failed to read server statistics")?;
-        info!("{:#?}", server_stats);
 
         // TODO: In later versions, send a final -1 marker.
-        self.shutdown()?;
-        Ok((file_list, server_stats))
+        self.shutdown(&mut summary)?;
+        info!("{:#?}", summary);
+        Ok((file_list, summary))
     }
 
     /// Download all regular files.
     ///
     /// Includes sending requests for them (with no basis) and receiving the data.
-    fn receive_files(&mut self, file_list: &[FileEntry]) -> Result<()> {
+    fn receive_files(&mut self, file_list: &[FileEntry], summary: &mut Summary) -> Result<()> {
         // compare to `recv_generator` in generator.c.
         assert!(!file_list.is_empty());
         let rv = &mut self.rv;
@@ -184,7 +186,7 @@ impl Connection {
             scope
                 .builder()
                 .name("rsyn_receiver".to_owned())
-                .spawn(|_| receive_offered_files(rv, checksum_seed, file_list))
+                .spawn(|_| receive_offered_files(rv, checksum_seed, file_list, summary))
                 .expect("Failed to spawn receiver thread");
             generate_files(wv, file_list).unwrap();
         })
@@ -197,7 +199,7 @@ impl Connection {
     ///
     /// This isn't the drop method, because it only makes sense to do after
     /// the protocol has reached the natural end.
-    fn shutdown(self) -> Result<()> {
+    fn shutdown(self, summary: &mut Summary) -> Result<()> {
         let Connection {
             rv,
             wv,
@@ -210,11 +212,11 @@ impl Connection {
         rv.check_for_eof()?;
         drop(wv);
 
-        // TODO: Should this be returned, somehow?
         // TODO: Should we timeout after a while?
         // TODO: Map rsync return codes to messages.
-        let child_result = child.wait()?;
-        info!("Child process exited: {}", child_result);
+        let child_exit_status = child.wait()?;
+        summary.child_exit_status = Some(child_exit_status);
+        info!("Child process exited: {}", child_exit_status);
 
         Ok(())
     }
@@ -263,6 +265,7 @@ fn receive_offered_files(
     rv: &mut ReadVarint,
     checksum_seed: i32,
     file_list: &[FileEntry],
+    summary: &mut Summary,
 ) -> Result<()> {
     // Files normally return in the order the receiver requests them, but this isn't guaranteed.
     // And if the sender fails to open the file, it just doesn't send any message, it just
@@ -270,18 +273,25 @@ fn receive_offered_files(
     loop {
         let remote_idx = rv.read_i32()?;
         if remote_idx == -1 {
-            debug!("receiver done");
+            debug!("Received end-of-phase marker");
             return Ok(());
         }
         let idx = remote_idx as usize;
         if idx >= file_list.len() {
+            summary.invalid_file_index_count += 1;
             error!("Remote file index {} is out of range", remote_idx)
         }
-        receive_file(rv, checksum_seed, &file_list[idx])?;
+        receive_file(rv, checksum_seed, &file_list[idx], summary)?;
+        summary.files_received += 1;
     }
 }
 
-fn receive_file(rv: &mut ReadVarint, checksum_seed: i32, entry: &FileEntry) -> Result<()> {
+fn receive_file(
+    rv: &mut ReadVarint,
+    checksum_seed: i32,
+    entry: &FileEntry,
+    summary: &mut Summary,
+) -> Result<()> {
     // Like |receive_data|.
     let name = entry.name_lossy_string();
     info!("Receive {:?}", name);
@@ -291,14 +301,17 @@ fn receive_file(rv: &mut ReadVarint, checksum_seed: i32, entry: &FileEntry) -> R
     hasher.input(checksum_seed.to_le_bytes());
     loop {
         // TODO: Specially handle data for deflate mode.
-        // Like |simple_recv_token|.
+        // Like rsync |simple_recv_token|.
         let t = rv.read_i32()?;
         if t == 0 {
             break;
         } else if t < 0 {
             todo!("Block copy reference")
         } else {
-            let content = rv.read_byte_string(t.try_into().unwrap())?;
+            let t = t.try_into().unwrap();
+            let content = rv.read_byte_string(t)?;
+            assert_eq!(content.len(), t);
+            summary.literal_bytes_received += content.len();
             hasher.input(content);
             // TODO: Write it to the local tree.
         }
@@ -307,6 +320,7 @@ fn receive_file(rv: &mut ReadVarint, checksum_seed: i32, entry: &FileEntry) -> R
     let local_md4 = hasher.result();
     if local_md4[..] != remote_md4[..] {
         // TODO: Remember the error, but don't bail out. Try again in phase 2.
+        summary.whole_file_sum_mismatch_count += 1;
         error!(
             "MD4 mismatch for {:?}: sender {}, receiver {}",
             name,

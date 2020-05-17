@@ -14,8 +14,35 @@
 
 //! Statistics/counter structs.
 
+/// Description of what happened during a transfer.
+#[derive(Clone, Eq, PartialEq, Debug, Default)]
+pub struct Summary {
+    /// Server reported this many errors while building the file count.
+    /// (Typically, "permission denied" on a subdirectory.)
+    pub server_flist_io_error_count: i32,
+
+    /// Statistics sent from the server.
+    pub server_stats: crate::ServerStatistics,
+
+    /// If a child process was used for the connection and it has exited,
+    /// it's exit status.
+    pub child_exit_status: Option<std::process::ExitStatus>,
+
+    /// Number of invalid file indexes received. Should be 0.
+    pub invalid_file_index_count: usize,
+
+    /// Number of times the whole-file MD4 did not match.
+    pub whole_file_sum_mismatch_count: usize,
+
+    /// Number of literal bytes (rather than references to the old file) received.
+    pub literal_bytes_received: usize,
+
+    /// Number of files received.
+    pub files_received: usize,
+}
+
 /// Statistics from a remote server about how much work it did.
-#[derive(Debug, Default)]
+#[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct ServerStatistics {
     // The rsync(1) man page has some description of these.
     /// Total bytes sent over the network from the client to the server.

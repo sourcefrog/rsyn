@@ -39,7 +39,7 @@
 //!
 //! let mut client = Client::local("./src");
 //! client.set_recursive(true);
-//! let (flist, _stats) = client.list_files()?;
+//! let (flist, _summary) = client.list_files()?;
 //!
 //! // We can see the `lib.rs` in the listing.
 //! assert!(flist.iter().any(|fe|
@@ -59,7 +59,7 @@ mod varint;
 pub use client::Client;
 pub use flist::{FileEntry, FileList};
 pub use options::Options;
-pub use statistics::ServerStatistics;
+pub use statistics::{ServerStatistics, Summary};
 
 /// General Result type from rsyn APIs.
 pub type Result<T> = anyhow::Result<T>;

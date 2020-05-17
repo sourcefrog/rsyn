@@ -25,7 +25,7 @@ use log::{debug, error, info, trace, warn};
 use regex::Regex;
 
 use crate::connection::Connection;
-use crate::{FileList, Options, Result, ServerStatistics};
+use crate::{FileList, Options, Result, Summary};
 
 /// SSH command name, to start it as a subprocess.
 const DEFAULT_SSH_COMMAND: &str = "ssh";
@@ -191,7 +191,7 @@ impl Client {
     /// List files from the remote server.
     ///
     /// This implicitly sets the `list_only` option.
-    pub fn list_files(&mut self) -> Result<(FileList, ServerStatistics)> {
+    pub fn list_files(&mut self) -> Result<(FileList, Summary)> {
         self.connect()
             .context("Failed to connect")?
             .list_files()

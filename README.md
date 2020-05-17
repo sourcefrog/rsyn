@@ -33,11 +33,13 @@ the rsync server over SSH.
 
 ## Roadmap
 
-Intended next steps are:
+Progress so far:
 
 - [x] List a local directory from a local subprocess.
 
 - [x] List a directory over SSH.
+
+Intended next steps are:
 
 - [ ] Copy a directory from rsync over SSH into an empty local directory.
 

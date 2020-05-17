@@ -17,7 +17,7 @@
 use std::convert::TryInto;
 use std::fmt;
 
-use anyhow::Context;
+use anyhow::{bail, Context};
 use chrono::{Local, TimeZone};
 
 #[allow(unused_imports)]
@@ -66,7 +66,6 @@ impl FileEntry {
     ///
     /// rsync doesn't constrain the encoding, so this will typically, but not
     /// necessarily be UTF-8.
-    // TODO: Also offer it as an OSString?
     pub fn name_bytes(&self) -> &[u8] {
         &self.name
     }
@@ -183,6 +182,7 @@ fn receive_file_entry(
     }
     trace!("  filename: {:?}", String::from_utf8_lossy(&name));
     assert!(!name.is_empty());
+    validate_name(&name)?;
 
     let file_len: u64 = rv
         .read_i64()?
@@ -213,6 +213,35 @@ fn receive_file_entry(
         mode,
         link_target: None,
     }))
+}
+
+/// Check that this name is safe to handle, and doesn't seem to include an escape from the
+/// directory.
+///
+/// The resulting path should only ever be used as relative to a destination directory.
+///
+fn validate_name(name: &[u8]) -> Result<()> {
+    // Compare to rsync |clean_fname| and |sanitize_path|, although this does not
+    // yet have the behavior of mapping into a pseudo-chroot directory, and it
+    // only treats bad names as errors.
+    //
+    // TODO: Also look for special device files on Windows?
+    let printable = || String::from_utf8_lossy(name);
+    if name.is_empty() {
+        bail!("Invalid name: empty");
+    }
+    if name[0] == b'/' {
+        bail!("Invalid name: absolute: {:?}", printable());
+    }
+    for part in name.split(|b| *b == b'/') {
+        if part.is_empty() || part == b".." {
+            bail!(
+                "Unsafe file path {:?}: this is either mischief by the sender or a bug",
+                printable()
+            );
+        }
+    }
+    Ok(())
 }
 
 fn sort_and_dedupe(file_list: &mut Vec<FileEntry>) {
@@ -302,5 +331,15 @@ mod test {
         messy.extend_from_slice(clean.as_slice());
         sort_and_dedupe(&mut messy);
         assert_eq!(&messy, &clean);
+    }
+
+    #[test]
+    fn validate_name() {
+        use super::validate_name;
+        assert!(validate_name(b".").is_ok());
+        assert!(validate_name(b"./ok").is_ok());
+        assert!(validate_name(b"easy").is_ok());
+        assert!(validate_name(b"../../naughty").is_err());
+        assert!(validate_name(b"still/not/../ok").is_err());
     }
 }

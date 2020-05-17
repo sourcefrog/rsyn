@@ -121,8 +121,7 @@ impl Connection {
         // let max_phase = if self.protocol_version >= 29 { 2 } else { 1 };
         let max_phase = 2;
 
-        // send exclusion list length of 0
-        self.send_exclusions()?;
+        send_empty_exclusions(&mut self.wv)?;
         let file_list = read_file_list(&mut self.rv)?;
         // TODO: With -o, get uid list.
         // TODO: With -g, get gid list.
@@ -138,19 +137,18 @@ impl Connection {
             }
         }
 
+        // Server stops here if there were no files.
+        if file_list.is_empty() {
+            info!("Server returned no files, so we're done");
+            // TODO: Maybe write one -1 here?
+            self.shutdown()?;
+            return Ok((file_list, ServerStatistics::default()));
+        }
+
         for phase in 1..=max_phase {
             debug!("Start phase {}", phase);
-
-            // Server stops here if there were no files.
-            if file_list.is_empty() {
-                info!("Server returned no files, so we're done");
-                // TODO: Maybe write one -1 here?
-                self.shutdown()?;
-                return Ok((file_list, ServerStatistics::default()));
-            }
-
             if phase == 1 && !self.options.list_only {
-                self.transfer_files(&file_list)?;
+                self.receive_files(&file_list)?;
             } else {
                 self.wv
                     .write_i32(-1)
@@ -164,8 +162,7 @@ impl Connection {
             .write_i32(-1)
             .context("Failed to send end-of-sequence marker")?;
         // TODO: In later versions (which?) read an end-of-sequence marker?
-        let server_stats = self
-            .read_server_statistics()
+        let server_stats = read_server_statistics(&mut self.rv, self.protocol_version)
             .context("Failed to read server statistics")?;
         info!("{:#?}", server_stats);
 
@@ -177,7 +174,7 @@ impl Connection {
     /// Download all regular files.
     ///
     /// Includes sending requests for them (with no basis) and receiving the data.
-    fn transfer_files(&mut self, file_list: &[FileEntry]) -> Result<()> {
+    fn receive_files(&mut self, file_list: &[FileEntry]) -> Result<()> {
         // compare to `recv_generator` in generator.c.
         assert!(!file_list.is_empty());
         let rv = &mut self.rv;
@@ -192,7 +189,7 @@ impl Connection {
             generate_files(wv, file_list).unwrap();
         })
         .unwrap();
-        debug!("transfer_files done");
+        debug!("receive_files done");
         Ok(()) // TODO: Handle errors from threads correctly
     }
 
@@ -221,30 +218,28 @@ impl Connection {
 
         Ok(())
     }
+}
 
-    fn send_exclusions(&mut self) -> Result<()> {
-        self.wv
-            .write_i32(0)
-            .context("Failed to send exclusion list")
-    }
+fn read_server_statistics(rv: &mut ReadVarint, protocol_version: i32) -> Result<ServerStatistics> {
+    Ok(ServerStatistics {
+        total_bytes_read: rv.read_i64()?,
+        total_bytes_written: rv.read_i64()?,
+        total_file_size: rv.read_i64()?,
+        flist_build_time: if protocol_version >= 29 {
+            Some(rv.read_i64()?)
+        } else {
+            None
+        },
+        flist_xfer_time: if protocol_version >= 29 {
+            Some(rv.read_i64()?)
+        } else {
+            None
+        },
+    })
+}
 
-    fn read_server_statistics(&mut self) -> Result<ServerStatistics> {
-        Ok(ServerStatistics {
-            total_bytes_read: self.rv.read_i64()?,
-            total_bytes_written: self.rv.read_i64()?,
-            total_file_size: self.rv.read_i64()?,
-            flist_build_time: if self.protocol_version >= 29 {
-                Some(self.rv.read_i64()?)
-            } else {
-                None
-            },
-            flist_xfer_time: if self.protocol_version >= 29 {
-                Some(self.rv.read_i64()?)
-            } else {
-                None
-            },
-        })
-    }
+fn send_empty_exclusions(wv: &mut WriteVarint) -> Result<()> {
+    wv.write_i32(0).context("Failed to send exclusion list")
 }
 
 fn generate_files(wv: &mut WriteVarint, file_list: &[FileEntry]) -> Result<()> {
@@ -263,16 +258,15 @@ fn generate_files(wv: &mut WriteVarint, file_list: &[FileEntry]) -> Result<()> {
     Ok(())
 }
 
+/// Receive files from the sender until it sends an end-of-phase marker.
 fn receive_offered_files(
     rv: &mut ReadVarint,
     checksum_seed: i32,
     file_list: &[FileEntry],
 ) -> Result<()> {
-    // Files normally return in the order we request them. But
-    // if the sender fails to open the file, it just doesn't send any
-    // message, it just continues to the next one. So blocking for input
-    // here can get hung ulistp.
-
+    // Files normally return in the order the receiver requests them, but this isn't guaranteed.
+    // And if the sender fails to open the file, it just doesn't send any message, it just
+    // continues to the next one.
     loop {
         let remote_idx = rv.read_i32()?;
         if remote_idx == -1 {
@@ -290,7 +284,7 @@ fn receive_offered_files(
 fn receive_file(rv: &mut ReadVarint, checksum_seed: i32, entry: &FileEntry) -> Result<()> {
     // Like |receive_data|.
     let name = entry.name_lossy_string();
-    debug!("Receive content for {:?}", name);
+    info!("Receive {:?}", name);
     let sums = SumHead::read(rv)?;
     trace!("Got sums for {:?}: {:?}", name, sums);
     let mut hasher = Md4::new();

@@ -151,15 +151,19 @@ fn list_files_dev() -> Result<()> {
 }
 
 fn install_test_logger() {
-    // The global logger can only be installed once per process, but this'll be called for
-    // many tests within the same process. They all try to install the same thing, so don't
-    // worry if it fails.
-
-    let _ = fern::Dispatch::new()
-        .format(format_log)
-        .level(log::LevelFilter::Debug)
-        .chain(fern::Output::call(|record| println!("{}", record.args())))
-        .apply();
+    // This works, but leaks out of the normally-captured test stdout, because
+    // the way Rust catches output only affects the main thread.
+    //
+    // Therefore, it's just off by default.
+    //
+    // https://github.com/rust-lang/rust/issues/42474
+    if false {
+        let _ = fern::Dispatch::new()
+            .format(format_log)
+            .level(log::LevelFilter::Debug)
+            .chain(fern::Output::call(|record| println!("{}", record.args())))
+            .apply();
+    }
 }
 
 /// Format a `log::Record`.

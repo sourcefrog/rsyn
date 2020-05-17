@@ -86,7 +86,7 @@ fn main() -> Result<()> {
     for entry in file_list {
         println!("{}", &entry)
     }
-    debug!("that's all folks");
+    debug!("That's all folks!");
     Ok(())
 }
 

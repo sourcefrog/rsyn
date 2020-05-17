@@ -289,9 +289,10 @@ fn receive_offered_files(
 
 fn receive_file(rv: &mut ReadVarint, checksum_seed: i32, entry: &FileEntry) -> Result<()> {
     // Like |receive_data|.
-    debug!("Receive content for {:?}", entry.name_lossy_string());
+    let name = entry.name_lossy_string();
+    debug!("Receive content for {:?}", name);
     let sums = SumHead::read(rv)?;
-    debug!("Got sums: {:?}", sums);
+    trace!("Got sums for {:?}: {:?}", name, sums);
     let mut hasher = Md4::new();
     hasher.input(checksum_seed.to_le_bytes());
     loop {
@@ -314,12 +315,16 @@ fn receive_file(rv: &mut ReadVarint, checksum_seed: i32, entry: &FileEntry) -> R
         // TODO: Remember the error, but don't bail out. Try again in phase 2.
         error!(
             "MD4 mismatch for {:?}: sender {}, receiver {}",
-            entry.name_lossy_string(),
+            name,
             hex::encode(remote_md4),
             hex::encode(local_md4)
         );
     } else {
-        debug!("Received matching file MD4 {}", hex::encode(&remote_md4));
+        debug!(
+            "Completed file {:?} with matching MD4 {}",
+            name,
+            hex::encode(&remote_md4)
+        );
     }
     Ok(())
 }

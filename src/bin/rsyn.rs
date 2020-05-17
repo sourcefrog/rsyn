@@ -22,7 +22,7 @@ use fern::colors::{Color, ColoredLevelConfig};
 use log::{debug, error, info, trace, warn};
 use structopt::StructOpt;
 
-use rsyn::{Client, Options, Result};
+use rsyn::{Client, LocalTree, Options, Result};
 
 #[derive(Debug, StructOpt)]
 #[structopt()]
@@ -30,8 +30,11 @@ use rsyn::{Client, Options, Result};
 ///
 /// With one PATH argument, lists the contents of that directory.
 struct Opt {
-    /// Directory to list.
-    path: String,
+    /// Location, directory, or file to copy.
+    source: String,
+
+    /// Local directory to copy to.
+    destination: Option<PathBuf>,
 
     /// File to send log/debug messages.
     #[structopt(long, env = "RSYN_LOG_FILE")]
@@ -80,11 +83,15 @@ fn main() -> Result<()> {
 
     configure_logging(&opt)?;
 
-    let mut client = Client::from_str(&opt.path).expect("Failed to parse path");
+    let mut client = Client::from_str(&opt.source).expect("Failed to parse path");
     *client.mut_options() = opt.to_options();
-    let (file_list, _stats) = client.list_files()?;
-    for entry in file_list {
-        println!("{}", &entry)
+    if let Some(destination) = opt.destination {
+        let (_file_list, _summary) = client.download(&mut LocalTree::new(&destination))?;
+    } else {
+        let (file_list, _summary) = client.list_files()?;
+        for entry in file_list {
+            println!("{}", &entry)
+        }
     }
     debug!("That's all folks!");
     Ok(())

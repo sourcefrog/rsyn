@@ -33,7 +33,7 @@ use crate::flist::{read_file_list, FileEntry, FileList};
 use crate::mux::DemuxRead;
 use crate::sums::SumHead;
 use crate::varint::{ReadVarint, WriteVarint};
-use crate::{Options, ServerStatistics, Summary};
+use crate::{LocalTree, Options, ServerStatistics, Summary};
 
 const MY_PROTOCOL_VERSION: i32 = 27;
 
@@ -108,15 +108,8 @@ impl Connection {
         })
     }
 
-    /// Lists files in the target directory on the server.
-    ///
-    /// The file list is in the sorted order defined by the protocol, which
-    /// is strcmp on the raw bytes of the names.
-    pub(crate) fn list_files(self) -> Result<(FileList, Summary)> {
-        self.receive()
-    }
-
-    fn receive(mut self) -> Result<(FileList, Summary)> {
+    /// Receive files from the server to the given LocalTree.
+    pub fn receive(mut self, local_tree: &mut LocalTree) -> Result<(FileList, Summary)> {
         // Analogous to rsync/receiver.c recv_files().
         // let max_phase = if self.protocol_version >= 29 { 2 } else { 1 };
         let max_phase = 2;
@@ -149,7 +142,7 @@ impl Connection {
         for phase in 1..=max_phase {
             debug!("Start phase {}", phase);
             if phase == 1 && !self.options.list_only {
-                self.receive_files(&file_list, &mut summary)?;
+                self.receive_files(&file_list, local_tree, &mut summary)?;
             } else {
                 self.wv
                     .write_i32(-1)
@@ -175,7 +168,12 @@ impl Connection {
     /// Download all regular files.
     ///
     /// Includes sending requests for them (with no basis) and receiving the data.
-    fn receive_files(&mut self, file_list: &[FileEntry], summary: &mut Summary) -> Result<()> {
+    fn receive_files(
+        &mut self,
+        file_list: &[FileEntry],
+        local_tree: &mut LocalTree,
+        summary: &mut Summary,
+    ) -> Result<()> {
         // compare to `recv_generator` in generator.c.
         assert!(!file_list.is_empty());
         let rv = &mut self.rv;
@@ -185,7 +183,7 @@ impl Connection {
             scope
                 .builder()
                 .name("rsyn_receiver".to_owned())
-                .spawn(|_| receive_offered_files(rv, checksum_seed, file_list, summary))
+                .spawn(|_| receive_offered_files(rv, checksum_seed, file_list, local_tree, summary))
                 .expect("Failed to spawn receiver thread");
             generate_files(wv, file_list).unwrap();
         })
@@ -264,6 +262,7 @@ fn receive_offered_files(
     rv: &mut ReadVarint,
     checksum_seed: i32,
     file_list: &[FileEntry],
+    local_tree: &mut LocalTree,
     summary: &mut Summary,
 ) -> Result<()> {
     // Files normally return in the order the receiver requests them, but this isn't guaranteed.
@@ -280,7 +279,7 @@ fn receive_offered_files(
             summary.invalid_file_index_count += 1;
             error!("Remote file index {} is out of range", remote_idx)
         }
-        receive_file(rv, checksum_seed, &file_list[idx], summary)?;
+        receive_file(rv, checksum_seed, &file_list[idx], local_tree, summary)?;
         summary.files_received += 1;
     }
 }
@@ -289,6 +288,7 @@ fn receive_file(
     rv: &mut ReadVarint,
     checksum_seed: i32,
     entry: &FileEntry,
+    _local_tree: &LocalTree,
     summary: &mut Summary,
 ) -> Result<()> {
     // Like |receive_data|.

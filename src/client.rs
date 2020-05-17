@@ -25,7 +25,7 @@ use log::{debug, error, info, trace, warn};
 use regex::Regex;
 
 use crate::connection::Connection;
-use crate::{FileList, Options, Result, Summary};
+use crate::{FileList, LocalTree, Options, Result, Summary};
 
 /// SSH command name, to start it as a subprocess.
 const DEFAULT_SSH_COMMAND: &str = "ssh";
@@ -192,9 +192,14 @@ impl Client {
     ///
     /// This implicitly sets the `list_only` option.
     pub fn list_files(&mut self) -> Result<(FileList, Summary)> {
+        self.download(&mut LocalTree::new("/dev/null")) // TODO: Clean LocalTree::null()
+    }
+
+    /// Download from the server into a local tree.
+    pub fn download(&mut self, local_tree: &mut LocalTree) -> Result<(FileList, Summary)> {
         self.connect()
             .context("Failed to connect")?
-            .list_files()
+            .receive(local_tree)
             .context("Failed to list files")
     }
 

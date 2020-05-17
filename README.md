@@ -12,12 +12,12 @@ rsyn supports protocol version 27, which is supported by rsync versions from
 
 ## Install
 
-1. Install Rust from <https://rustup.rs/> or elsewhere.
+1. [Install Rust](https://rustup.rs/).
 
-2. In the rsyn source tree, run
+2. Run
 
    ```shell
-   cargo install --path .
+   cargo install rsyn
    ```
 
 To run the interoperability tests (with `cargo test`) you'll need a copy of

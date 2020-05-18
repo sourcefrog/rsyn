@@ -277,7 +277,8 @@ fn receive_offered_files(
         let idx = remote_idx as usize;
         if idx >= file_list.len() {
             summary.invalid_file_index_count += 1;
-            error!("Remote file index {} is out of range", remote_idx)
+            error!("Remote file index {} is out of range", remote_idx);
+            bail!("File index out of range");
         }
         receive_file(rv, checksum_seed, &file_list[idx], local_tree, summary)?;
         summary.files_received += 1;
@@ -288,12 +289,17 @@ fn receive_file(
     rv: &mut ReadVarint,
     checksum_seed: i32,
     entry: &FileEntry,
-    _local_tree: &LocalTree,
+    local_tree: &LocalTree,
     summary: &mut Summary,
 ) -> Result<()> {
-    // Like |receive_data|.
-    let name = entry.name_lossy_string();
+    // Like rsync |receive_data|.
+    // TODO: Must still consume all the data off the wire, even if some problem occurs
+    // in writing it out.
+    // TODO: Must create subdirectories before trying to write files into them. Probably
+    // easiest just to create all directories before copying any files.
+    let name = entry.name_str()?;
     info!("Receive {:?}", name);
+    let mut out_file = local_tree.write_file(&name).unwrap();
     let sums = SumHead::read(rv)?;
     trace!("Got sums for {:?}: {:?}", name, sums);
     let mut hasher = Md4::new();
@@ -310,6 +316,7 @@ fn receive_file(
             let t = t.try_into().unwrap();
             let content = rv.read_byte_string(t)?;
             assert_eq!(content.len(), t);
+            out_file.write_all(&content).unwrap();
             summary.literal_bytes_received += content.len();
             hasher.input(content);
             // TODO: Write it to the local tree.
@@ -327,6 +334,7 @@ fn receive_file(
             hex::encode(local_md4)
         );
     } else {
+        out_file.finalize().unwrap();
         debug!(
             "Completed file {:?} with matching MD4 {}",
             name,

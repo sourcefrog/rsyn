@@ -70,6 +70,13 @@ impl FileEntry {
         &self.name
     }
 
+    /// Returns the name as a string if possible.
+    pub fn name_str(&self) -> Result<&str> {
+        std::str::from_utf8(&self.name)
+            .with_context(|| format!("Failed to decode name {:?}", self.name_lossy_string()))
+            .into()
+    }
+
     /// Returns the file name, with un-decodable bytes converted to Unicode
     /// replacement characters.
     ///

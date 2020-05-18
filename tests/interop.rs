@@ -39,7 +39,11 @@ fn list_files() {
     File::create(tmp.path().join("subdir").join("galah")).unwrap();
 
     let mut client = Client::local(tmp.path());
-    client.set_recursive(true);
+    client.set_options(Options {
+        recursive: true,
+        list_only: true,
+        ..Options::default()
+    });
     let (flist, summary) = client.list_files().unwrap();
 
     assert_eq!(flist.len(), 5);

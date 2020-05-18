@@ -38,7 +38,7 @@
 //! use rsyn::{Client, Options};
 //!
 //! let mut client = Client::local("./src");
-//! client.set_recursive(true);
+//! client.set_options(Options { recursive: true, list_only: true, ..Options::default() });
 //! let (flist, _summary) = client.list_files()?;
 //!
 //! // We can see the `lib.rs` in the listing.

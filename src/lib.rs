@@ -22,7 +22,7 @@
 #![allow(private_doc_tests)]
 // MAYBE: warn(missing-doc-code-examples) but covering everything isn't a
 // priority yet.
-#![warn(intra_doc_link_resolution_failure)]
+#![warn(broken_intra_doc_links)]
 // Match on Ord isn't any easier to read.
 #![allow(clippy::comparison_chain)]
 

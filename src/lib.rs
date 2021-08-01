@@ -16,13 +16,13 @@
 #![warn(missing_docs)]
 #![warn(future_incompatible)]
 #![warn(rust_2018_idioms)]
-// private_doc_tests is a nice idea but unfortunately warns on types republished
+// rustdoc::private_doc_tests is a nice idea but unfortunately warns on types republished
 // by `pub use`.
 // https://github.com/rust-lang/rust/issues/72081
-#![allow(private_doc_tests)]
+#![allow(rustdoc::private_doc_tests)]
 // MAYBE: warn(missing-doc-code-examples) but covering everything isn't a
 // priority yet.
-#![warn(broken_intra_doc_links)]
+#![warn(rustdoc::broken_intra_doc_links)]
 // Match on Ord isn't any easier to read.
 #![allow(clippy::comparison_chain)]
 

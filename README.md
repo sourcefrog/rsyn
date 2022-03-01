@@ -7,6 +7,9 @@
 `rsyn` reimplements part of the rsync network protocol in pure Rust. (It's
 "rsync with no C.")
 
+**NOTE: `rsyn` is an incomplete and inactive experiment. It's not currently a
+useful replacement for rsync.**
+
 rsyn supports protocol version 27, which is supported by rsync versions from
 2.6.0 (released in 2004) onwards, and by openrsync.
 
